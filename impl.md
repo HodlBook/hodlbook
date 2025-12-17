@@ -15,36 +15,38 @@
 
 ### 1.2 Project Initialization
 - [x] Initialize Git repository structure
-- [ ] Set up back-end project scaffolding
-- [ ] Set up front-end project scaffolding
-- [ ] Create Docker Compose configuration
-- [ ] Create .gitignore and environment variable templates
+- [x] Set up back-end project scaffolding (Go + Gin + MVC structure)
+- [x] Set up front-end scaffolding (htmx templates integrated with back-end)
+- [x] Create Docker Compose configuration
+- [x] Create .gitignore and environment variable templates
 
 ### 1.3 Development Environment
-- [ ] Create Dockerfile for back-end service
-- [ ] Create Dockerfile for front-end service
-- [ ] Set up docker-compose.yml for local development
+- [x] Create Dockerfile for back-end service
+- [x] Set up docker-compose.yml for local development
 - [ ] Configure hot-reload for development
 - [ ] Document local setup instructions in README
+
+**Note**: Front-end implementation (templates/htmx) will be done after back-end API is complete.
 
 ## Phase 2: Database Design & Implementation
 
 ### 2.1 Database Schema
-- [ ] Design `assets` table (id, symbol, name, type)
-- [ ] Design `transactions` table (id, type, asset_id, amount, timestamp, notes)
-- [ ] Design `exchanges` table (id, from_asset_id, to_asset_id, from_amount, to_amount, timestamp)
-- [ ] Design `prices` table (id, asset_id, currency, price, timestamp)
-- [ ] Design `settings` table (id, key, value) for reference currency preference
-- [ ] Create database migration files
-- [ ] Implement database initialization script
+- [x] Design `transactions` table (id, type, asset_id, amount, timestamp, notes)
+- [x] Design `prices` table (id, asset_id, currency, price, timestamp)
+- [ ] Design `assets` table (id, symbol, name, type) - managed externally
+- [ ] Design `exchanges` table (id, from_asset_id, to_asset_id, from_amount, to_amount, timestamp) - derived from transactions
+- [ ] Design `settings` table (id, key, value) for reference currency preference - future enhancement
+- [x] Create database migration files (using GORM auto-migration)
+- [x] Implement database initialization script
 
 ### 2.2 Database Access Layer
-- [ ] Implement database connection handler
-- [ ] Create ORM models or query builders
-- [ ] Implement asset CRUD operations
-- [ ] Implement transaction CRUD operations
-- [ ] Implement exchange CRUD operations
-- [ ] Implement price data storage and retrieval
+- [x] Implement database connection handler (`pkg/utils/db.go`)
+- [x] Create GORM models (`internal/repo/models.go`)
+- [x] Implement transaction CRUD operations (`internal/repo/transaction_repo.go`)
+- [x] Implement price data storage and retrieval (`internal/repo/price_repo.go`)
+- [x] Repository pattern with unified access (`internal/repo/repo.go`)
+
+**Note**: Assets and Exchanges are calculated from transaction data, not stored directly.
 
 ## Phase 3: Back-end API Development
 
