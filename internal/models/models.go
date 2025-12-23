@@ -2,52 +2,68 @@ package models
 
 import "time"
 
-// Asset represents a cryptocurrency or token
 type Asset struct {
-	ID        int64     `json:"id"`
-	Symbol    string    `json:"symbol"`
+	ID        int64     `json:"id"         gorm:"primaryKey"`
+	Symbol    string    `json:"symbol"     gorm:"uniqueIndex"`
 	Name      string    `json:"name"`
-	Type      string    `json:"type"`
+	Type      string    `json:"type"       gorm:"index"`
+	Decimals  int       `json:"decimals"   gorm:"default:8"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// Transaction represents a deposit or withdrawal
 type Transaction struct {
-	ID        int64     `json:"id"`
-	Type      string    `json:"type"` // "deposit" or "withdrawal"
-	AssetID   int64     `json:"asset_id"`
+	ID        int64     `json:"id"         gorm:"primaryKey"`
+	Type      string    `json:"type"       gorm:"index"`
+	AssetID   int64     `json:"asset_id"   gorm:"index"`
 	Amount    float64   `json:"amount"`
 	Notes     string    `json:"notes"`
-	Timestamp time.Time `json:"timestamp"`
+	Timestamp time.Time `json:"timestamp"  gorm:"index"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
 
-// Exchange represents a swap from one asset to another
 type Exchange struct {
-	ID          int64     `json:"id"`
-	FromAssetID int64     `json:"from_asset_id"`
-	ToAssetID   int64     `json:"to_asset_id"`
+	ID          int64     `json:"id"            gorm:"primaryKey"`
+	FromAssetID int64     `json:"from_asset_id" gorm:"index"`
+	ToAssetID   int64     `json:"to_asset_id"   gorm:"index"`
 	FromAmount  float64   `json:"from_amount"`
 	ToAmount    float64   `json:"to_amount"`
-	Timestamp   time.Time `json:"timestamp"`
+	Fee         float64   `json:"fee"`
+	FeeCurrency string    `json:"fee_currency"`
+	Notes       string    `json:"notes"`
+	Timestamp   time.Time `json:"timestamp"     gorm:"index"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// Price represents the price of an asset at a specific time
 type Price struct {
-	ID        int64     `json:"id"`
-	AssetID   int64     `json:"asset_id"`
-	Currency  string    `json:"currency"`
+	ID        int64     `json:"id"         gorm:"primaryKey"`
+	AssetID   int64     `json:"asset_id"   gorm:"index:idx_asset_currency_time"`
+	Currency  string    `json:"currency"   gorm:"index:idx_asset_currency_time"`
 	Price     float64   `json:"price"`
-	Timestamp time.Time `json:"timestamp"`
+	Timestamp time.Time `json:"timestamp"  gorm:"index:idx_asset_currency_time"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
-// Setting represents application configuration
 type Setting struct {
 	ID    int64  `json:"id"`
 	Key   string `json:"key"`
 	Value string `json:"value"`
+}
+
+func (Asset) TableName() string {
+	return "assets"
+}
+
+func (Transaction) TableName() string {
+	return "transactions"
+}
+
+func (Exchange) TableName() string {
+	return "exchanges"
+}
+
+func (Price) TableName() string {
+	return "prices"
 }

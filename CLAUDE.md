@@ -13,7 +13,7 @@ From now on:
     - Be honest about limitations of your knowledge
     - Challenge weak arguments
     - Fix eventual grammar errors in code and comments
-    - Re-read changed or created files to ensure consistency and avoid corrupted code
+    - Re-read changed files to ensure consistency and avoid corrupted code
     - Avoid unnecessary or redundant code comments
     - Avoid converting code changes to documentation
     - Avoid using emoji in code comments or documentation
