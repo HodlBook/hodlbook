@@ -1,18 +1,13 @@
 package database
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 )
 
 func TestDatabase_NewAndClose(t *testing.T) {
-	dbPath := filepath.Join(os.TempDir(), "test_hodlbook.db")
-	defer os.Remove(dbPath)
-
-	db, err := New(WithPath(dbPath))
+	db, err := New(WithPath("file::memory:?cache=shared"))
 	require.NoError(t, err)
 	require.NotNil(t, db.Get())
 	require.NoError(t, db.Close())

@@ -6,10 +6,15 @@ type Asset struct {
 	ID        int64     `json:"id"         gorm:"primaryKey"`
 	Symbol    string    `json:"symbol"     gorm:"uniqueIndex"`
 	Name      string    `json:"name"`
-	Type      string    `json:"type"       gorm:"index"`
-	Decimals  int       `json:"decimals"   gorm:"default:8"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
+}
+
+type AssetHistoricValue struct {
+	AssetID   int64     `json:"asset_id"   gorm:"index"`
+	Value     float64   `json:"value"`
+	Timestamp time.Time `json:"timestamp"  gorm:"index"`
+	CreatedAt time.Time `json:"created_at"`
 }
 
 type Transaction struct {

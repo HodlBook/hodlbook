@@ -62,6 +62,10 @@ func GetPriceForPair(pair string, prices map[string]float64) (float64, error) {
 		return 1.0, nil
 	}
 
+	if strings.HasSuffix(pair, "USD") {
+		pair += "T"
+	}
+
 	// Check if the pair exists in the prices map
 	if price, exists := prices[pair]; exists {
 		return price, nil

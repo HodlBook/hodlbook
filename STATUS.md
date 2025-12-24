@@ -1,6 +1,7 @@
 # HodlBook - Development Status
 
 Self-hosted crypto portfolio management application.
+First phase focuses on backend API development.
 
 **Stack:** Go/Gin backend, htmx frontend (pending), SQLite database
 
@@ -9,7 +10,7 @@ Self-hosted crypto portfolio management application.
 ### Project Setup
 - [x] Go + Gin + MVC structure
 - [x] Docker/Docker Compose configuration
-- [x] Git repository and CI (GitHub Actions)
+- [ ] Git repository and CI (GitHub Actions)
 
 ### Database Layer
 - [x] `transactions` table (id, type, asset_id, amount, timestamp, notes)
@@ -20,7 +21,7 @@ Self-hosted crypto portfolio management application.
 - [x] Repository pattern with tests
 
 ### REST API
-- [x] Converted to pure REST/JSON API (removed HTML templates)
+- [x] Converted to pure REST/JSON API 
 - [x] All routes under `/api` prefix
 - [x] HTTP handling in `/internal/handler`
 
@@ -46,7 +47,18 @@ Self-hosted crypto portfolio management application.
 - [x] `PUT /api/exchanges/:id` - Update exchange
 - [x] `DELETE /api/exchanges/:id` - Delete exchange
 
+### Price Integration
+- [x] Price fetcher service (Binance API with CoinGecko fallback)
+- [x] Fetch single asset price
+- [x] Fetch multiple asset prices
+
 ## In Progress
+
+### Asset historic values
+Add asset historic value tracking for accurate portfolio valuation over time.
+- all assets in portfolio will have a new price entry added daily at GMT-0 midnight
+- this addition will be done via background job
+- [ ] `GET /api/prices/:asset/history` - Get historic prices for asset
 
 ### Portfolio Analytics
 - [ ] `GET /api/portfolio/summary` - Total portfolio value
@@ -55,7 +67,6 @@ Self-hosted crypto portfolio management application.
 - [ ] `GET /api/portfolio/history` - Portfolio value over time
 
 ### Price Integration
-- [ ] Price fetcher service (CoinGecko free API)
 - [ ] `GET /api/prices/:asset` - Get current price
 - [ ] Background job for periodic updates
 - [ ] Price caching mechanism

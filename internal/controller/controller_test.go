@@ -86,10 +86,8 @@ func (s *ControllerTestSuite) Test01_Asset_ListEmpty() {
 
 func (s *ControllerTestSuite) Test02_Asset_Create() {
 	asset := models.Asset{
-		Symbol:   "BTC",
-		Name:     "Bitcoin",
-		Type:     "crypto",
-		Decimals: 8,
+		Symbol: "BTC",
+		Name:   "Bitcoin",
 	}
 	body, _ := json.Marshal(asset)
 
@@ -111,10 +109,8 @@ func (s *ControllerTestSuite) Test02_Asset_Create() {
 
 func (s *ControllerTestSuite) Test03_Asset_CreateSecond() {
 	asset := models.Asset{
-		Symbol:   "ETH",
-		Name:     "Ethereum",
-		Type:     "crypto",
-		Decimals: 18,
+		Symbol: "ETH",
+		Name:   "Ethereum",
 	}
 	body, _ := json.Marshal(asset)
 
@@ -165,10 +161,8 @@ func (s *ControllerTestSuite) Test07_Asset_Update() {
 	s.Require().NotNil(s.createdAsset)
 
 	updated := models.Asset{
-		Symbol:   "BTC",
-		Name:     "Bitcoin (Updated)",
-		Type:     "crypto",
-		Decimals: 8,
+		Symbol: "BTC",
+		Name:   "Bitcoin (Updated)",
 	}
 	body, _ := json.Marshal(updated)
 
@@ -185,7 +179,7 @@ func (s *ControllerTestSuite) Test07_Asset_Update() {
 }
 
 func (s *ControllerTestSuite) Test08_Asset_UpdateNotFound() {
-	updated := models.Asset{Symbol: "XRP", Name: "Ripple", Type: "crypto"}
+	updated := models.Asset{Symbol: "XRP", Name: "Ripple"}
 	body, _ := json.Marshal(updated)
 
 	req := httptest.NewRequest(http.MethodPut, "/api/assets/999", bytes.NewReader(body))

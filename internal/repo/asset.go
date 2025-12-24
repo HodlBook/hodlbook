@@ -14,25 +14,9 @@ func (r *Repository) GetAssetByID(id int64) (*models.Asset, error) {
 	return &asset, nil
 }
 
-func (r *Repository) GetAssetBySymbol(symbol string) (*models.Asset, error) {
-	var asset models.Asset
-	if err := r.db.Where("symbol = ?", symbol).First(&asset).Error; err != nil {
-		return nil, err
-	}
-	return &asset, nil
-}
-
 func (r *Repository) GetAllAssets() ([]models.Asset, error) {
 	var assets []models.Asset
 	if err := r.db.Order("symbol ASC").Find(&assets).Error; err != nil {
-		return nil, err
-	}
-	return assets, nil
-}
-
-func (r *Repository) GetAssetsByType(assetType string) ([]models.Asset, error) {
-	var assets []models.Asset
-	if err := r.db.Where("type = ?", assetType).Order("symbol ASC").Find(&assets).Error; err != nil {
 		return nil, err
 	}
 	return assets, nil

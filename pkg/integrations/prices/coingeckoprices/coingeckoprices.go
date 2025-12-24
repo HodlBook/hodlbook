@@ -36,7 +36,7 @@ func (c *PriceFetcher) FetchMany(pairs ...*prices.Price) error {
 	ids := make([]string, 0)
 	vsCurrencies := make([]string, 0)
 	for _, pair := range pairs {
-		ids = append(ids, strings.ToLower(pair.FromAsset.Name))
+		ids = append(ids, strings.ToLower(pair.Asset.Name))
 		vsCurrencies = append(vsCurrencies, "usd") // Normalize to USD
 	}
 
@@ -62,11 +62,11 @@ func (c *PriceFetcher) FetchMany(pairs ...*prices.Price) error {
 	}
 
 	for _, pair := range pairs {
-		priceValue, ok := result[strings.ToLower(pair.FromAsset.Name)]["usd"]
+		priceValue, ok := result[strings.ToLower(pair.Asset.Name)]["usd"]
 		if !ok {
-			return fmt.Errorf("price not found for asset: %s and currency: %s", pair.FromAsset.Name, "usd")
+			return fmt.Errorf("price not found for asset: %s and currency: %s", pair.Asset.Name, "usd")
 		}
-		pair.Value = uint64(priceValue * 100) // Convert to cents
+		pair.Value = priceValue
 	}
 
 	return nil
@@ -97,8 +97,8 @@ func (c *PriceFetcher) FetchAll() ([]prices.Price, error) {
 	pricesList := make([]prices.Price, 0)
 	for _, result := range results {
 		pricesList = append(pricesList, prices.Price{
-			FromAsset: prices.Asset{Name: result.ID, Symbol: result.Symbol},
-			Value:     uint64(result.Price * 100), // Convert to cents
+			Asset: prices.Asset{Name: result.ID, Symbol: result.Symbol},
+			Value: result.Price,
 		})
 	}
 

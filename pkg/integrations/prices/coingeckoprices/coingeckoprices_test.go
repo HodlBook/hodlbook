@@ -13,7 +13,7 @@ func TestPriceFetcher_Fetch(t *testing.T) {
 	assert.NoError(t, err)
 
 	assert.NotZero(t, prices.SamplePair.Value, "expected non-zero price value")
-	t.Logf("%sUSD: %d", prices.SamplePair.FromAsset.Symbol, prices.SamplePair.Value)
+	t.Logf("%sUSD: %f", prices.SamplePair.Asset.Symbol, prices.SamplePair.Value)
 }
 
 func TestPriceFetcher_FetchMany(t *testing.T) {
@@ -24,7 +24,7 @@ func TestPriceFetcher_FetchMany(t *testing.T) {
 	}
 
 	for _, pair := range prices.SamplePairs {
-		assert.NotZero(t, pair.Value, "expected non-zero price value for pair %v to USD", pair.FromAsset)
-		t.Logf("%sUSD: %d", pair.FromAsset.Symbol, pair.Value)
+		assert.NotZero(t, pair.Value, "expected non-zero price value for pair %v to USD", pair.Asset)
+		t.Logf("%sUSD: %f", pair.Asset.Symbol, pair.Value)
 	}
 }

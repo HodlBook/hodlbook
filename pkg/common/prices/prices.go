@@ -6,8 +6,8 @@ type Asset struct {
 }
 
 type Price struct {
-	FromAsset Asset
-	Value     uint64
+	Asset Asset
+	Value float64
 }
 
 type PriceFetcher interface {
@@ -17,14 +17,14 @@ type PriceFetcher interface {
 
 var (
 	SamplePair = &Price{
-		FromAsset: Asset{Name: "Bitcoin", Symbol: "BTC"},
+		Asset: Asset{Name: "Bitcoin", Symbol: "BTC"},
 	}
 	SamplePairs = []*Price{
 		{
-			FromAsset: Asset{Name: "Bitcoin", Symbol: "BTC"},
+			Asset: Asset{Name: "Bitcoin", Symbol: "BTC"},
 		},
 		{
-			FromAsset: Asset{Name: "Ethereum", Symbol: "ETH"},
+			Asset: Asset{Name: "Ethereum", Symbol: "ETH"},
 		},
 	}
 )

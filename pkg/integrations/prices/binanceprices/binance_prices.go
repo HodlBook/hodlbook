@@ -28,9 +28,8 @@ func NewPriceFetcher() *PriceFetcher {
 	}
 }
 
-// all asset prices are shown in USD cents
 func (b *PriceFetcher) Fetch(price *prices.Price) error {
-	pair := price.FromAsset.Symbol + "USD" // Normalize to USD
+	pair := price.Asset.Symbol + "USD" // Normalize to USD
 	endpoint := fmt.Sprintf("%s/ticker/price?symbol=%s", b.BaseURL, pair)
 
 	resp, err := b.Client.Get(endpoint)
@@ -60,11 +59,10 @@ func (b *PriceFetcher) Fetch(price *prices.Price) error {
 		return fmt.Errorf("invalid price format: %w", err)
 	}
 
-	price.Value = uint64(priceValue * 100) // Convert to cents
+	price.Value = priceValue
 	return nil
 }
 
-// all asset prices are shown in USD cents
 func (b *PriceFetcher) FetchMany(prices ...*prices.Price) error {
 	endpoint := fmt.Sprintf("%s/ticker/price", b.BaseURL)
 
@@ -85,12 +83,12 @@ func (b *PriceFetcher) FetchMany(prices ...*prices.Price) error {
 
 	priceMap := pairs.PairMap(results)
 	for _, price := range prices {
-		pair := price.FromAsset.Symbol + "USD" // Normalize to USD
+		pair := price.Asset.Symbol + "USD" // Normalize to USD
 		priceValue, err := pairs.GetPriceForPair(pair, priceMap)
 		if err != nil {
 			return fmt.Errorf("failed to get price for pair %s: %w", pair, err)
 		}
-		price.Value = uint64(priceValue * 100) // Convert to cents
+		price.Value = priceValue
 	}
 
 	return nil
@@ -123,8 +121,8 @@ func (b *PriceFetcher) FetchAll() ([]prices.Price, error) {
 			priceValue, err := strconv.ParseFloat(result.Price, 64)
 			if err == nil {
 				pricesList = append(pricesList, prices.Price{
-					FromAsset: prices.Asset{Name: result.Symbol[:len(result.Symbol)-3], Symbol: result.Symbol[:len(result.Symbol)-3]},
-					Value:     uint64(priceValue * 100), // Convert to cents
+					Asset: prices.Asset{Name: result.Symbol[:len(result.Symbol)-3], Symbol: result.Symbol[:len(result.Symbol)-3]},
+					Value: priceValue,
 				})
 			}
 		}
