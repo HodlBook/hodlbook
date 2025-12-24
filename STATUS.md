@@ -29,7 +29,6 @@ First phase focuses on backend API development.
 - [x] `POST /api/assets` - Create asset
 - [x] `GET /api/assets` - List all assets
 - [x] `GET /api/assets/:id` - Get asset details
-- [x] `PUT /api/assets/:id` - Update asset
 - [x] `DELETE /api/assets/:id` - Delete asset
 
 ### Transactions API

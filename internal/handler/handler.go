@@ -41,7 +41,6 @@ func (h *Handler) Setup() error {
 	assets.GET("", ctrl.ListAssets)
 	assets.POST("", ctrl.CreateAsset)
 	assets.GET("/:id", ctrl.GetAsset)
-	assets.PUT("/:id", ctrl.UpdateAsset)
 	assets.DELETE("/:id", ctrl.DeleteAsset)
 
 	transactions := api.Group("/transactions")

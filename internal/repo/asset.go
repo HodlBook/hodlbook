@@ -22,10 +22,6 @@ func (r *Repository) GetAllAssets() ([]models.Asset, error) {
 	return assets, nil
 }
 
-func (r *Repository) UpdateAsset(asset *models.Asset) error {
-	return r.db.Save(asset).Error
-}
-
 func (r *Repository) DeleteAsset(id int64) error {
 	return r.db.Delete(&models.Asset{}, id).Error
 }

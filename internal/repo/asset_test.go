@@ -25,12 +25,6 @@ func TestAssetRepository_CRUD(t *testing.T) {
 	require.Equal(t, asset.Symbol, got.Symbol)
 	require.Equal(t, asset.Name, got.Name)
 
-	asset.Name = "Bitcoin (Updated)"
-	require.NoError(t, repository.UpdateAsset(asset))
-	got, err = repository.GetAssetByID(asset.ID)
-	require.NoError(t, err)
-	require.Equal(t, "Bitcoin (Updated)", got.Name)
-
 	assets, err := repository.GetAllAssets()
 	require.NoError(t, err)
 	require.Len(t, assets, 1)

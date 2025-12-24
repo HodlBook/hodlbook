@@ -16,10 +16,10 @@ type PriceFetcher interface {
 }
 
 var (
-	SamplePair = &Price{
+	SamplePrice = &Price{
 		Asset: Asset{Name: "Bitcoin", Symbol: "BTC"},
 	}
-	SamplePairs = []*Price{
+	SamplePrices = []*Price{
 		{
 			Asset: Asset{Name: "Bitcoin", Symbol: "BTC"},
 		},

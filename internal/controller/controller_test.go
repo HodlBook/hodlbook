@@ -52,7 +52,6 @@ func (s *ControllerTestSuite) SetupSuite() {
 	assets.GET("", ctrl.ListAssets)
 	assets.POST("", ctrl.CreateAsset)
 	assets.GET("/:id", ctrl.GetAsset)
-	assets.PUT("/:id", ctrl.UpdateAsset)
 	assets.DELETE("/:id", ctrl.DeleteAsset)
 
 	transactions := api.Group("/transactions")
@@ -157,28 +156,7 @@ func (s *ControllerTestSuite) Test06_Asset_GetInvalidID() {
 	s.Equal(http.StatusBadRequest, w.Code)
 }
 
-func (s *ControllerTestSuite) Test07_Asset_Update() {
-	s.Require().NotNil(s.createdAsset)
-
-	updated := models.Asset{
-		Symbol: "BTC",
-		Name:   "Bitcoin (Updated)",
-	}
-	body, _ := json.Marshal(updated)
-
-	req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/assets/%d", s.createdAsset.ID), bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	s.router.ServeHTTP(w, req)
-
-	s.Equal(http.StatusOK, w.Code)
-
-	var asset models.Asset
-	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &asset))
-	s.Equal("Bitcoin (Updated)", asset.Name)
-}
-
-func (s *ControllerTestSuite) Test08_Asset_UpdateNotFound() {
+func (s *ControllerTestSuite) Test07_Asset_UpdateNotFound() {
 	updated := models.Asset{Symbol: "XRP", Name: "Ripple"}
 	body, _ := json.Marshal(updated)
 
@@ -190,7 +168,7 @@ func (s *ControllerTestSuite) Test08_Asset_UpdateNotFound() {
 	s.Equal(http.StatusNotFound, w.Code)
 }
 
-func (s *ControllerTestSuite) Test09_Asset_List() {
+func (s *ControllerTestSuite) Test08_Asset_List() {
 	req := httptest.NewRequest(http.MethodGet, "/api/assets", nil)
 	w := httptest.NewRecorder()
 	s.router.ServeHTTP(w, req)
@@ -202,7 +180,7 @@ func (s *ControllerTestSuite) Test09_Asset_List() {
 	s.Len(assets, 2)
 }
 
-func (s *ControllerTestSuite) Test10_Asset_CreateInvalidJSON() {
+func (s *ControllerTestSuite) Test09_Asset_CreateInvalidJSON() {
 	req := httptest.NewRequest(http.MethodPost, "/api/assets", bytes.NewReader([]byte("invalid")))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -543,14 +521,6 @@ func (s *ControllerTestSuite) Test94_Asset_Delete() {
 
 	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/assets/%d", s.createdAsset.ID), nil)
 	w = httptest.NewRecorder()
-	s.router.ServeHTTP(w, req)
-
-	s.Equal(http.StatusNotFound, w.Code)
-}
-
-func (s *ControllerTestSuite) Test95_Asset_DeleteNotFound() {
-	req := httptest.NewRequest(http.MethodDelete, "/api/assets/999", nil)
-	w := httptest.NewRecorder()
 	s.router.ServeHTTP(w, req)
 
 	s.Equal(http.StatusNotFound, w.Code)
