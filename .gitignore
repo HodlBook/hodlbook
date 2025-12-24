@@ -42,8 +42,12 @@ Thumbs.db
 
 # Docker volumes
 /data/
+/snippets/
 
 # Logs
 *.log
 logs/
+
+
+
 
