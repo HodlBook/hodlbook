@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"hodlbook/pkg/common/prices"
+	"hodlbook/pkg/types/prices"
 )
 
 var (

@@ -3,7 +3,7 @@ package binanceprices
 import (
 	"testing"
 
-	"hodlbook/pkg/common/prices"
+	"hodlbook/pkg/types/prices"
 
 	"github.com/stretchr/testify/assert"
 )

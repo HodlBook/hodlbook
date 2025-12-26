@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"hodlbook/pkg/common/prices"
 	"hodlbook/pkg/pairs"
+	"hodlbook/pkg/types/prices"
 )
 
 var (

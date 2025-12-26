@@ -2,9 +2,9 @@ package prices
 
 import (
 	"fmt"
-	"hodlbook/pkg/common/prices"
 	"hodlbook/pkg/integrations/prices/binanceprices"
 	"hodlbook/pkg/integrations/prices/coingeckoprices"
+	"hodlbook/pkg/types/prices"
 )
 
 var (

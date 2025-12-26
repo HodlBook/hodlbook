@@ -1,7 +1,7 @@
 package coingeckoprices
 
 import (
-	"hodlbook/pkg/common/prices"
+	"hodlbook/pkg/types/prices"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
