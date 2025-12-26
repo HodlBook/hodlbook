@@ -11,6 +11,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// ListTransactions godoc
+// @Summary List transactions
+// @Description Get a list of transactions with optional filters
+// @Tags transactions
+// @Produce json
+// @Param limit query int false "Limit"
+// @Param offset query int false "Offset"
+// @Param asset_id query int false "Asset ID"
+// @Param type query string false "Transaction type"
+// @Param start_date query string false "Start date (YYYY-MM-DD)"
+// @Param end_date query string false "End date (YYYY-MM-DD)"
+// @Success 200 {object} repo.TransactionListResult
+// @Failure 500 {object} map[string]string
+// @Router /api/transactions [get]
 func (c *Controller) ListTransactions(ctx *gin.Context) {
 	filter := repo.TransactionFilter{}
 
@@ -52,6 +66,16 @@ func (c *Controller) ListTransactions(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, result)
 }
 
+// GetTransaction godoc
+// @Summary Get a transaction by ID
+// @Description Get a single transaction by its ID
+// @Tags transactions
+// @Produce json
+// @Param id path int true "Transaction ID"
+// @Success 200 {object} models.Transaction
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/transactions/{id} [get]
 func (c *Controller) GetTransaction(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
@@ -68,6 +92,17 @@ func (c *Controller) GetTransaction(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, tx)
 }
 
+// CreateTransaction godoc
+// @Summary Create a new transaction
+// @Description Create a new transaction with the provided data
+// @Tags transactions
+// @Accept json
+// @Produce json
+// @Param transaction body models.Transaction true "Transaction data"
+// @Success 201 {object} models.Transaction
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/transactions [post]
 func (c *Controller) CreateTransaction(ctx *gin.Context) {
 	var tx models.Transaction
 	if err := ctx.ShouldBindJSON(&tx); err != nil {
@@ -87,6 +122,19 @@ func (c *Controller) CreateTransaction(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, tx)
 }
 
+// UpdateTransaction godoc
+// @Summary Update a transaction
+// @Description Update an existing transaction by its ID
+// @Tags transactions
+// @Accept json
+// @Produce json
+// @Param id path int true "Transaction ID"
+// @Param transaction body models.Transaction true "Transaction data"
+// @Success 200 {object} models.Transaction
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/transactions/{id} [put]
 func (c *Controller) UpdateTransaction(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
@@ -114,6 +162,16 @@ func (c *Controller) UpdateTransaction(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, tx)
 }
 
+// DeleteTransaction godoc
+// @Summary Delete a transaction
+// @Description Delete a transaction by its ID
+// @Tags transactions
+// @Param id path int true "Transaction ID"
+// @Success 204
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/transactions/{id} [delete]
 func (c *Controller) DeleteTransaction(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {

@@ -57,7 +57,8 @@ First phase focuses on backend API development.
 Add asset historic value tracking for accurate portfolio valuation over time.
 - all assets in portfolio will have a new price entry added daily at GMT-0 midnight
 - this addition will be done via background job
-- [ ] `GET /api/prices/:asset/history` - Get historic prices for asset
+- [x] `GET /api/prices/:asset/history` - Get historic prices for asset
+- [x] Add daily price entry for all assets via pubsub+schedule
 
 ### Portfolio Analytics
 - [ ] `GET /api/portfolio/summary` - Total portfolio value

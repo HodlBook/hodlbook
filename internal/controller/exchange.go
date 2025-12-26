@@ -11,6 +11,21 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// ListExchanges godoc
+// @Summary List exchanges
+// @Description Get a list of exchanges with optional filters
+// @Tags exchanges
+// @Produce json
+// @Param limit query int false "Limit"
+// @Param offset query int false "Offset"
+// @Param asset_id query int false "Asset ID (matches from or to)"
+// @Param from_asset_id query int false "From Asset ID"
+// @Param to_asset_id query int false "To Asset ID"
+// @Param start_date query string false "Start date (YYYY-MM-DD)"
+// @Param end_date query string false "End date (YYYY-MM-DD)"
+// @Success 200 {object} repo.ExchangeListResult
+// @Failure 500 {object} map[string]string
+// @Router /api/exchanges [get]
 func (c *Controller) ListExchanges(ctx *gin.Context) {
 	filter := repo.ExchangeFilter{}
 
@@ -59,6 +74,16 @@ func (c *Controller) ListExchanges(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, result)
 }
 
+// GetExchange godoc
+// @Summary Get an exchange by ID
+// @Description Get a single exchange by its ID
+// @Tags exchanges
+// @Produce json
+// @Param id path int true "Exchange ID"
+// @Success 200 {object} models.Exchange
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/exchanges/{id} [get]
 func (c *Controller) GetExchange(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
@@ -75,6 +100,17 @@ func (c *Controller) GetExchange(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, exchange)
 }
 
+// CreateExchange godoc
+// @Summary Create a new exchange
+// @Description Create a new exchange with the provided data
+// @Tags exchanges
+// @Accept json
+// @Produce json
+// @Param exchange body models.Exchange true "Exchange data"
+// @Success 201 {object} models.Exchange
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/exchanges [post]
 func (c *Controller) CreateExchange(ctx *gin.Context) {
 	var exchange models.Exchange
 	if err := ctx.ShouldBindJSON(&exchange); err != nil {
@@ -99,6 +135,19 @@ func (c *Controller) CreateExchange(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, exchange)
 }
 
+// UpdateExchange godoc
+// @Summary Update an exchange
+// @Description Update an existing exchange by its ID
+// @Tags exchanges
+// @Accept json
+// @Produce json
+// @Param id path int true "Exchange ID"
+// @Param exchange body models.Exchange true "Exchange data"
+// @Success 200 {object} models.Exchange
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/exchanges/{id} [put]
 func (c *Controller) UpdateExchange(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
@@ -131,6 +180,16 @@ func (c *Controller) UpdateExchange(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, exchange)
 }
 
+// DeleteExchange godoc
+// @Summary Delete an exchange
+// @Description Delete an exchange by its ID
+// @Tags exchanges
+// @Param id path int true "Exchange ID"
+// @Success 204
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/exchanges/{id} [delete]
 func (c *Controller) DeleteExchange(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
