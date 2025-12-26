@@ -1,12 +1,14 @@
 package controller
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	"hodlbook/internal/models"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // ListAssets godoc
@@ -85,6 +87,8 @@ func (c *Controller) CreateAsset(ctx *gin.Context) {
 // @Param id path int true "Asset ID"
 // @Success 204
 // @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
 // @Router /api/assets/{id} [delete]
 func (c *Controller) DeleteAsset(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
@@ -93,7 +97,10 @@ func (c *Controller) DeleteAsset(ctx *gin.Context) {
 		return
 	}
 
-	_ = c.repo.DeleteAsset(id)
+	if err := c.repo.DeleteAsset(id); err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete asset"})
+		return
+	}
 
 	ctx.Status(http.StatusNoContent)
 }

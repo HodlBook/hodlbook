@@ -174,61 +174,18 @@ func TestLivePriceService_FetchAndPublish(t *testing.T) {
 	}
 }
 
-func TestLivePriceService_GetPrice(t *testing.T) {
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-
-	cache := memcache.New[string, float64]()
-	cache.Set("BTC", 50000.0)
-
-	fetcher := pricesPkg.NewPriceService()
-	ch := make(chan []byte, 10)
-	pub := wmPubsub.New(wmPubsub.WithChannel(ch), wmPubsub.WithContext(ctx))
-	repo := &mockAssetRepo{}
-
-	svc, err := NewLivePriceService(
-		WithLivePriceContext(ctx),
-		WithLivePriceLogger(discardLogger),
-		WithLivePriceCache(cache),
-		WithLivePriceFetcher(fetcher),
-		WithLivePricePublisher(pub),
-		WithLivePriceRepo(repo),
-	)
-	require.NoError(t, err)
-
-	price, ok := svc.GetPrice("BTC")
-	assert.True(t, ok)
-	assert.Equal(t, 50000.0, price)
-
-	_, ok = svc.GetPrice("UNKNOWN")
-	assert.False(t, ok)
-}
-
-func TestLivePriceService_GetAllPrices(t *testing.T) {
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-
+func TestLivePriceService_CacheAccess(t *testing.T) {
 	cache := memcache.New[string, float64]()
 	cache.Set("BTC", 50000.0)
 	cache.Set("ETH", 3000.0)
 
-	fetcher := pricesPkg.NewPriceService()
-	ch := make(chan []byte, 10)
-	pub := wmPubsub.New(wmPubsub.WithChannel(ch), wmPubsub.WithContext(ctx))
-	repo := &mockAssetRepo{}
+	price, ok := cache.Get("BTC")
+	assert.True(t, ok)
+	assert.Equal(t, 50000.0, price)
 
-	svc, err := NewLivePriceService(
-		WithLivePriceContext(ctx),
-		WithLivePriceLogger(discardLogger),
-		WithLivePriceCache(cache),
-		WithLivePriceFetcher(fetcher),
-		WithLivePricePublisher(pub),
-		WithLivePriceRepo(repo),
-	)
-	require.NoError(t, err)
+	_, ok = cache.Get("UNKNOWN")
+	assert.False(t, ok)
 
-	prices := svc.GetAllPrices()
-	assert.Len(t, prices, 2)
-	assert.Equal(t, 50000.0, prices["BTC"])
-	assert.Equal(t, 3000.0, prices["ETH"])
+	keys := cache.Keys()
+	assert.Len(t, keys, 2)
 }

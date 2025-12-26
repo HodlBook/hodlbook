@@ -17,9 +17,9 @@ import (
 var historicDiscardLogger = slog.New(slog.NewTextHandler(io.Discard, nil))
 
 type mockHistoricRepo struct {
-	assets  []models.Asset
-	values  []models.AssetHistoricValue
-	mu      sync.Mutex
+	assets    []models.Asset
+	values    []models.AssetHistoricValue
+	mu        sync.Mutex
 	insertErr error
 }
 

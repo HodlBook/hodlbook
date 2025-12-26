@@ -41,7 +41,7 @@ func (s *ControllerTestSuite) SetupSuite() {
 	repository, err := repo.New(db)
 	s.Require().NoError(err)
 
-	ctrl, err := New(repository)
+	ctrl, err := New(WithRepository(repository))
 	s.Require().NoError(err)
 	s.ctrl = ctrl
 
@@ -189,6 +189,22 @@ func (s *ControllerTestSuite) Test09_Asset_CreateInvalidJSON() {
 	s.Equal(http.StatusBadRequest, w.Code)
 }
 
+func (s *ControllerTestSuite) Test10_Asset_DeleteNotFound() {
+	req := httptest.NewRequest(http.MethodDelete, "/api/assets/999", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusNoContent, w.Code)
+}
+
+func (s *ControllerTestSuite) Test11_Asset_DeleteInvalidID() {
+	req := httptest.NewRequest(http.MethodDelete, "/api/assets/invalid", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusBadRequest, w.Code)
+}
+
 // Transaction Tests
 
 func (s *ControllerTestSuite) Test20_Transaction_ListEmpty() {
@@ -311,6 +327,73 @@ func (s *ControllerTestSuite) Test27_Transaction_ListWithFilters() {
 	var result repo.TransactionListResult
 	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
 	s.Len(result.Transactions, 1)
+}
+
+func (s *ControllerTestSuite) Test28_Transaction_CreateInvalidJSON() {
+	req := httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewReader([]byte("invalid")))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusBadRequest, w.Code)
+}
+
+func (s *ControllerTestSuite) Test29_Transaction_UpdateInvalidID() {
+	updated := models.Transaction{Type: "deposit", AssetID: 1, Amount: 1.0}
+	body, _ := json.Marshal(updated)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/transactions/invalid", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusBadRequest, w.Code)
+}
+
+func (s *ControllerTestSuite) Test30_Transaction_UpdateInvalidJSON() {
+	s.Require().NotNil(s.createdTransaction)
+
+	req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/transactions/%d", s.createdTransaction.ID), bytes.NewReader([]byte("invalid")))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusBadRequest, w.Code)
+}
+
+func (s *ControllerTestSuite) Test31_Transaction_DeleteInvalidID() {
+	req := httptest.NewRequest(http.MethodDelete, "/api/transactions/invalid", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusBadRequest, w.Code)
+}
+
+func (s *ControllerTestSuite) Test32_Transaction_ListWithPagination() {
+	req := httptest.NewRequest(http.MethodGet, "/api/transactions?limit=10&offset=0", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+
+	var result repo.TransactionListResult
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+	s.LessOrEqual(len(result.Transactions), 10)
+}
+
+func (s *ControllerTestSuite) Test33_Transaction_ListWithDateRange() {
+	startDate := time.Now().Add(-24 * time.Hour).Format(time.RFC3339)
+	endDate := time.Now().Add(24 * time.Hour).Format(time.RFC3339)
+
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/transactions?start_date=%s&end_date=%s", startDate, endDate), nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+
+	var result repo.TransactionListResult
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+	s.GreaterOrEqual(len(result.Transactions), 0)
 }
 
 // Exchange Tests
@@ -460,6 +543,87 @@ func (s *ControllerTestSuite) Test48_Exchange_ListWithFilters() {
 	s.Len(result.Exchanges, 1)
 }
 
+func (s *ControllerTestSuite) Test49_Exchange_CreateInvalidJSON() {
+	req := httptest.NewRequest(http.MethodPost, "/api/exchanges", bytes.NewReader([]byte("invalid")))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusBadRequest, w.Code)
+}
+
+func (s *ControllerTestSuite) Test50_Exchange_UpdateInvalidID() {
+	updated := models.Exchange{FromAssetID: 1, ToAssetID: 2, FromAmount: 1.0, ToAmount: 1.0}
+	body, _ := json.Marshal(updated)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/exchanges/invalid", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusBadRequest, w.Code)
+}
+
+func (s *ControllerTestSuite) Test51_Exchange_UpdateInvalidJSON() {
+	s.Require().NotNil(s.createdExchange)
+
+	req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/exchanges/%d", s.createdExchange.ID), bytes.NewReader([]byte("invalid")))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusBadRequest, w.Code)
+}
+
+func (s *ControllerTestSuite) Test52_Exchange_DeleteInvalidID() {
+	req := httptest.NewRequest(http.MethodDelete, "/api/exchanges/invalid", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusBadRequest, w.Code)
+}
+
+func (s *ControllerTestSuite) Test53_Exchange_ListWithPagination() {
+	req := httptest.NewRequest(http.MethodGet, "/api/exchanges?limit=10&offset=0", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+
+	var result repo.ExchangeListResult
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+	s.LessOrEqual(len(result.Exchanges), 10)
+}
+
+func (s *ControllerTestSuite) Test54_Exchange_ListWithDateRange() {
+	startDate := time.Now().Add(-24 * time.Hour).Format(time.RFC3339)
+	endDate := time.Now().Add(24 * time.Hour).Format(time.RFC3339)
+
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/exchanges?start_date=%s&end_date=%s", startDate, endDate), nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+
+	var result repo.ExchangeListResult
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+	s.GreaterOrEqual(len(result.Exchanges), 0)
+}
+
+func (s *ControllerTestSuite) Test55_Exchange_ListWithToAssetFilter() {
+	s.Require().NotNil(s.createdAsset2)
+
+	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/exchanges?to_asset_id=%d", s.createdAsset2.ID), nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+
+	var result repo.ExchangeListResult
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+	s.GreaterOrEqual(len(result.Exchanges), 0)
+}
+
 // Delete Tests
 
 func (s *ControllerTestSuite) Test90_Exchange_Delete() {
@@ -483,7 +647,7 @@ func (s *ControllerTestSuite) Test91_Exchange_DeleteNotFound() {
 	w := httptest.NewRecorder()
 	s.router.ServeHTTP(w, req)
 
-	s.Equal(http.StatusNotFound, w.Code)
+	s.Equal(http.StatusNoContent, w.Code)
 }
 
 func (s *ControllerTestSuite) Test92_Transaction_Delete() {
@@ -507,7 +671,7 @@ func (s *ControllerTestSuite) Test93_Transaction_DeleteNotFound() {
 	w := httptest.NewRecorder()
 	s.router.ServeHTTP(w, req)
 
-	s.Equal(http.StatusNotFound, w.Code)
+	s.Equal(http.StatusNoContent, w.Code)
 }
 
 func (s *ControllerTestSuite) Test94_Asset_Delete() {

@@ -13,6 +13,17 @@ definitions:
       updated_at:
         type: string
     type: object
+  models.AssetHistoricValue:
+    properties:
+      asset_id:
+        type: integer
+      created_at:
+        type: string
+      timestamp:
+        type: string
+      value:
+        type: number
+    type: object
   models.Exchange:
     properties:
       created_at:
@@ -162,6 +173,18 @@ paths:
             additionalProperties:
               type: string
             type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
       summary: Delete an asset
       tags:
       - assets
@@ -294,12 +317,6 @@ paths:
             additionalProperties:
               type: string
             type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -411,6 +428,93 @@ paths:
       summary: Get portfolio summary
       tags:
       - portfolio
+  /api/prices:
+    get:
+      description: Get current prices for all tracked assets
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties:
+              type: number
+            type: object
+      summary: List current prices
+      tags:
+      - prices
+  /api/prices/{symbol}:
+    get:
+      description: Get current price for a specific asset by symbol
+      parameters:
+      - description: Asset symbol (e.g., BTC, ETH)
+        in: path
+        name: symbol
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get price for a specific asset
+      tags:
+      - prices
+  /api/prices/history/{id}:
+    get:
+      description: Get historical prices for a specific asset by ID
+      parameters:
+      - description: Asset ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/models.AssetHistoricValue'
+            type: array
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get price history for an asset
+      tags:
+      - prices
+  /api/prices/stream:
+    get:
+      description: Server-Sent Events endpoint for real-time price updates
+      produces:
+      - text/event-stream
+      responses:
+        "200":
+          description: SSE stream
+          schema:
+            type: string
+      summary: Stream live prices
+      tags:
+      - prices
   /api/transactions:
     get:
       description: Get a list of transactions with optional filters
@@ -502,12 +606,6 @@ paths:
           description: No Content
         "400":
           description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
           schema:
             additionalProperties:
               type: string

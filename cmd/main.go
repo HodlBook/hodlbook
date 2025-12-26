@@ -59,12 +59,24 @@ func main() {
 	priceFetcher := prices.NewPriceService()
 	priceCache := memcache.New[string, float64]()
 	priceCh := make(chan []byte, 10)
+	sseCh := make(chan []byte, 10)
 	pricePublisher := wmPubsub.New(
 		wmPubsub.WithChannel(priceCh),
 		wmPubsub.WithContext(ctx),
 		wmPubsub.WithTopic("prices"),
 		wmPubsub.WithLogger(logger),
+		wmPubsub.WithHandler(func(data []byte) error {
+			select {
+			case sseCh <- data:
+			default:
+				logger.Warn("sseCh full, dropping message")
+			}
+			return nil
+		}),
 	)
+	if err := pricePublisher.Subscribe(); err != nil {
+		log.Fatal("Failed to start price subscriber:", err)
+	}
 
 	livePriceSvc, err := service.NewLivePriceService(
 		service.WithLivePriceContext(ctx),
@@ -100,7 +112,12 @@ func main() {
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
 
-	h, err := handler.New(r, repository)
+	h, err := handler.New(
+		handler.WithEngine(r),
+		handler.WithRepository(repository),
+		handler.WithPriceChannel(sseCh),
+		handler.WithPriceCache(priceCache),
+	)
 	if err != nil {
 		log.Fatal("Failed to create handler:", err)
 	}

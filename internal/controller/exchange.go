@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"hodlbook/internal/repo"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // ListExchanges godoc
@@ -187,7 +189,6 @@ func (c *Controller) UpdateExchange(ctx *gin.Context) {
 // @Param id path int true "Exchange ID"
 // @Success 204
 // @Failure 400 {object} map[string]string
-// @Failure 404 {object} map[string]string
 // @Failure 500 {object} map[string]string
 // @Router /api/exchanges/{id} [delete]
 func (c *Controller) DeleteExchange(ctx *gin.Context) {
@@ -197,15 +198,10 @@ func (c *Controller) DeleteExchange(ctx *gin.Context) {
 		return
 	}
 
-	if _, err = c.repo.GetExchangeByID(id); err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Exchange not found"})
-		return
-	}
-
-	if err := c.repo.DeleteExchange(id); err != nil {
+	if err := c.repo.DeleteExchange(id); err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete exchange"})
 		return
 	}
 
-	ctx.JSON(http.StatusNoContent, nil)
+	ctx.Status(http.StatusNoContent)
 }

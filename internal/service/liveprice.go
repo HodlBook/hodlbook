@@ -207,16 +207,3 @@ func (s *LivePriceService) fetchAndPublish() error {
 	return nil
 }
 
-func (s *LivePriceService) GetPrice(symbol string) (float64, bool) {
-	return s.cache.Get(symbol)
-}
-
-func (s *LivePriceService) GetAllPrices() map[string]float64 {
-	result := make(map[string]float64)
-	for _, symbol := range s.cache.Keys() {
-		if val, ok := s.cache.Get(symbol); ok {
-			result[symbol] = val
-		}
-	}
-	return result
-}

@@ -17,13 +17,15 @@ First phase focuses on backend API development.
 - [x] `prices` table (id, asset_id, currency, price, timestamp)
 - [x] `assets` table (id, symbol, name, type, decimals)
 - [x] `exchanges` table (id, from_asset_id, to_asset_id, from_amount, to_amount, fee, timestamp, notes)
+- [x] `asset_historic_values` table (asset_id, value, timestamp)
 - [x] GORM auto-migration
 - [x] Repository pattern with tests
 
 ### REST API
-- [x] Converted to pure REST/JSON API 
+- [x] Converted to pure REST/JSON API
 - [x] All routes under `/api` prefix
 - [x] HTTP handling in `/internal/handler`
+- [x] Swagger documentation at `/swagger/index.html`
 
 ### Assets API
 - [x] `POST /api/assets` - Create asset
@@ -50,15 +52,22 @@ First phase focuses on backend API development.
 - [x] Price fetcher service (Binance API with CoinGecko fallback)
 - [x] Fetch single asset price
 - [x] Fetch multiple asset prices
+- [x] Background job for periodic updates (1-minute interval)
+- [x] Price caching mechanism (in-memory cache)
+- [x] PubSub for live price broadcasting
+
+### Asset Historic Values
+- [x] Daily price storage via background scheduler
+- [x] Historic value repository
+
+### Infrastructure
+- [x] Graceful shutdown handling (signal handling)
+- [x] Structured logging (slog)
+- [x] Scheduler package (ticker-based)
+- [x] In-memory pubsub package
+- [x] In-memory cache package
 
 ## In Progress
-
-### Asset historic values
-Add asset historic value tracking for accurate portfolio valuation over time.
-- all assets in portfolio will have a new price entry added daily at GMT-0 midnight
-- this addition will be done via background job
-- [x] `GET /api/prices/:asset/history` - Get historic prices for asset
-- [x] Add daily price entry for all assets via pubsub+schedule
 
 ### Portfolio Analytics
 - [ ] `GET /api/portfolio/summary` - Total portfolio value
@@ -66,22 +75,20 @@ Add asset historic value tracking for accurate portfolio valuation over time.
 - [ ] `GET /api/portfolio/performance` - Profit/loss calculations
 - [ ] `GET /api/portfolio/history` - Portfolio value over time
 
-### Price Integration
-- [ ] `GET /api/prices/:asset` - Get current price
-- [ ] Background job for periodic updates
-- [ ] Price caching mechanism
+### Price API
+- [ ] `GET /api/prices/:asset` - Get current price from cache
+- [ ] `GET /api/prices/:asset/history` - Get historic prices for asset
 
 ## Pending
 
 ### Testing
 - [ ] Handler-level tests
 - [ ] Integration tests for API endpoints
+- [ ] Service-level tests
 
 ### Infrastructure
 - [ ] `GET /api/health` endpoint
-- [ ] Graceful shutdown handling
 - [ ] Hot-reload for development (Air)
-- [ ] Structured logging
 - [ ] Standardized error messages
 
 ### Frontend (htmx)
@@ -91,10 +98,10 @@ Add asset historic value tracking for accurate portfolio valuation over time.
 - [ ] Exchange forms
 - [ ] Dashboard with charts
 - [ ] Settings page
+- [ ] Live price updates via pubsub/websocket
 
 ### Documentation
 - [ ] Local setup instructions in README
-- [ ] API documentation (OpenAPI/Swagger)
 
 ## Out of Scope
 - Automatic exchange API integrations
