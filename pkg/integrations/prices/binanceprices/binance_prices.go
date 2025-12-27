@@ -83,10 +83,15 @@ func (b *PriceFetcher) FetchMany(prices ...*prices.Price) error {
 
 	priceMap := pairs.PairMap(results)
 	for _, price := range prices {
-		pair := price.Asset.Symbol + "USD" // Normalize to USD
+		symbol := price.Asset.Symbol
+		if symbol == "USD" || symbol == "USDT" || symbol == "USDC" {
+			price.Value = 1.0
+			continue
+		}
+		pair := symbol + "USD"
 		priceValue, err := pairs.GetPriceForPair(pair, priceMap)
 		if err != nil {
-			return fmt.Errorf("failed to get price for pair %s: %w", pair, err)
+			continue
 		}
 		price.Value = priceValue
 	}

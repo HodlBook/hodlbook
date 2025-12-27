@@ -100,11 +100,26 @@ func main() {
 		log.Fatal("Failed to create historic price service:", err)
 	}
 
+	assetCreatedCh := make(chan []byte, 10)
+	assetHistoricSvc, err := service.NewAssetHistoricService(
+		service.WithAssetHistoricContext(ctx),
+		service.WithAssetHistoricLogger(logger),
+		service.WithAssetHistoricFetcher(priceFetcher),
+		service.WithAssetHistoricRepo(repository),
+		service.WithAssetHistoricChannel(assetCreatedCh),
+	)
+	if err != nil {
+		log.Fatal("Failed to create asset historic service:", err)
+	}
+
 	if err := livePriceSvc.Start(); err != nil {
 		log.Fatal("Failed to start live price service:", err)
 	}
 	if err := historicPriceSvc.Start(); err != nil {
 		log.Fatal("Failed to start historic price service:", err)
+	}
+	if err := assetHistoricSvc.Start(); err != nil {
+		log.Fatal("Failed to start asset historic service:", err)
 	}
 
 	r := gin.Default()
@@ -117,6 +132,7 @@ func main() {
 		handler.WithRepository(repository),
 		handler.WithPriceChannel(sseCh),
 		handler.WithPriceCache(priceCache),
+		handler.WithAssetCreatedPublisher(assetHistoricSvc.Publisher()),
 	)
 	if err != nil {
 		log.Fatal("Failed to create handler:", err)

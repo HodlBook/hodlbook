@@ -469,7 +469,7 @@ const docTemplate = `{
         },
         "/api/portfolio/allocation": {
             "get": {
-                "description": "Get the portfolio allocation by asset",
+                "description": "Get the portfolio allocation by asset with percentages",
                 "produces": [
                     "application/json"
                 ],
@@ -484,13 +484,90 @@ const docTemplate = `{
                             "type": "object",
                             "additionalProperties": true
                         }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/portfolio/history": {
+            "get": {
+                "description": "Get portfolio value over time using historic prices",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "portfolio"
+                ],
+                "summary": "Get portfolio history",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Number of days of history (default 30)",
+                        "name": "days",
+                        "in": "query"
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        "/api/portfolio/performance": {
+            "get": {
+                "description": "Get profit/loss calculations per asset",
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "portfolio"
+                ],
+                "summary": "Get portfolio performance",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
                     }
                 }
             }
         },
         "/api/portfolio/summary": {
             "get": {
-                "description": "Get the total portfolio value",
+                "description": "Get the total portfolio value with holdings breakdown",
                 "produces": [
                     "application/json"
                 ],
@@ -504,6 +581,15 @@ const docTemplate = `{
                         "schema": {
                             "type": "object",
                             "additionalProperties": true
+                        }
+                    },
+                    "500": {
+                        "description": "Internal Server Error",
+                        "schema": {
+                            "type": "object",
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 }

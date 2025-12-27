@@ -137,7 +137,7 @@ func (s *LivePriceService) Stop() {
 }
 
 func (s *LivePriceService) tick() error {
-	if time.Since(s.lastSync) >= s.syncInterval {
+	if len(s.cache.Keys()) == 0 || time.Since(s.lastSync) >= s.syncInterval {
 		if err := s.syncFromDB(); err != nil {
 			s.logger.Error("DB sync failed", "error", err)
 		}

@@ -6,6 +6,7 @@ import (
 	"hodlbook/internal/controller"
 	"hodlbook/internal/repo"
 	"hodlbook/pkg/types/cache"
+	"hodlbook/pkg/types/pubsub"
 
 	"github.com/gin-gonic/gin"
 )
@@ -17,11 +18,12 @@ var (
 )
 
 type Handler struct {
-	engine     *gin.Engine
-	repository *repo.Repository
-	priceCh    <-chan []byte
-	priceCHSet bool
-	priceCache cache.Cache[string, float64]
+	engine            *gin.Engine
+	repository        *repo.Repository
+	priceCh           <-chan []byte
+	priceCHSet        bool
+	priceCache        cache.Cache[string, float64]
+	assetCreatedPub   pubsub.Publisher
 }
 
 func (h *Handler) IsValid() error {
@@ -64,6 +66,12 @@ func WithPriceCache(pc cache.Cache[string, float64]) Option {
 	}
 }
 
+func WithAssetCreatedPublisher(p pubsub.Publisher) Option {
+	return func(h *Handler) {
+		h.assetCreatedPub = p
+	}
+}
+
 func New(opts ...Option) (*Handler, error) {
 	h := &Handler{}
 	for _, opt := range opts {
@@ -79,6 +87,7 @@ func (h *Handler) Setup() error {
 	ctrl, err := controller.New(
 		controller.WithRepository(h.repository),
 		controller.WithPriceCache(h.priceCache),
+		controller.WithAssetCreatedPublisher(h.assetCreatedPub),
 	)
 	if err != nil {
 		return err
@@ -109,6 +118,8 @@ func (h *Handler) Setup() error {
 	portfolio := api.Group("/portfolio")
 	portfolio.GET("/summary", ctrl.PortfolioSummary)
 	portfolio.GET("/allocation", ctrl.PortfolioAllocation)
+	portfolio.GET("/performance", ctrl.PortfolioPerformance)
+	portfolio.GET("/history", ctrl.PortfolioHistory)
 
 	prices := api.Group("/prices")
 	if h.priceCh != nil {

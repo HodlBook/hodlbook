@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"errors"
 	"net/http"
 	"strconv"
@@ -75,6 +76,13 @@ func (c *Controller) CreateAsset(ctx *gin.Context) {
 	if err := c.repo.CreateAsset(&asset); err != nil {
 		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create asset"})
 		return
+	}
+
+	if data, err := json.Marshal(asset); err == nil {
+		err = c.assetCreatedPub.Publish(data)
+		if err != nil {
+			c.logger.Error("failed to publish asset created event", "pubsub", err)
+		}
 	}
 
 	ctx.JSON(http.StatusCreated, asset)

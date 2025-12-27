@@ -35,7 +35,7 @@ func (s *ControllerTestSuite) SetupSuite() {
 
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	s.Require().NoError(err)
-	s.Require().NoError(db.AutoMigrate(&models.Asset{}, &models.Transaction{}, &models.Exchange{}))
+	s.Require().NoError(db.AutoMigrate(&models.Asset{}, &models.Transaction{}, &models.Exchange{}, &models.AssetHistoricValue{}))
 	s.db = db
 
 	repository, err := repo.New(db)
@@ -67,6 +67,12 @@ func (s *ControllerTestSuite) SetupSuite() {
 	exchanges.GET("/:id", ctrl.GetExchange)
 	exchanges.PUT("/:id", ctrl.UpdateExchange)
 	exchanges.DELETE("/:id", ctrl.DeleteExchange)
+
+	portfolio := api.Group("/portfolio")
+	portfolio.GET("/summary", ctrl.PortfolioSummary)
+	portfolio.GET("/allocation", ctrl.PortfolioAllocation)
+	portfolio.GET("/performance", ctrl.PortfolioPerformance)
+	portfolio.GET("/history", ctrl.PortfolioHistory)
 }
 
 // Asset Tests
@@ -622,6 +628,270 @@ func (s *ControllerTestSuite) Test55_Exchange_ListWithToAssetFilter() {
 	var result repo.ExchangeListResult
 	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
 	s.GreaterOrEqual(len(result.Exchanges), 0)
+}
+
+// Portfolio Tests
+
+func (s *ControllerTestSuite) Test60_Portfolio_Summary() {
+	req := httptest.NewRequest(http.MethodGet, "/api/portfolio/summary", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+
+	var result map[string]interface{}
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+
+	s.Contains(result, "total_value")
+	s.Contains(result, "currency")
+	s.Contains(result, "holdings")
+	s.Equal("USD", result["currency"])
+
+	holdings, ok := result["holdings"].([]interface{})
+	s.True(ok)
+	s.GreaterOrEqual(len(holdings), 0)
+}
+
+func (s *ControllerTestSuite) Test61_Portfolio_SummaryWithHoldings() {
+	s.Require().NotNil(s.createdAsset)
+
+	tx := models.Transaction{
+		Type:      "deposit",
+		AssetID:   s.createdAsset.ID,
+		Amount:    5.0,
+		Notes:     "Portfolio test deposit",
+		Timestamp: time.Now(),
+	}
+	body, _ := json.Marshal(tx)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+	s.Equal(http.StatusCreated, w.Code)
+
+	req = httptest.NewRequest(http.MethodGet, "/api/portfolio/summary", nil)
+	w = httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+
+	var result map[string]interface{}
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+
+	holdings, ok := result["holdings"].([]interface{})
+	s.True(ok)
+	s.GreaterOrEqual(len(holdings), 1)
+
+	holdingsMap := make(map[string]float64)
+	for _, h := range holdings {
+		entry := h.(map[string]interface{})
+		holdingsMap[entry["symbol"].(string)] = entry["amount"].(float64)
+	}
+	s.Greater(holdingsMap["BTC"], float64(0))
+}
+
+func (s *ControllerTestSuite) Test62_Portfolio_Allocation() {
+	req := httptest.NewRequest(http.MethodGet, "/api/portfolio/allocation", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+
+	var result map[string]interface{}
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+
+	s.Contains(result, "total_value")
+	s.Contains(result, "allocations")
+
+	allocations, ok := result["allocations"].([]interface{})
+	s.True(ok)
+	s.GreaterOrEqual(len(allocations), 0)
+}
+
+func (s *ControllerTestSuite) Test63_Portfolio_AllocationMultipleAssets() {
+	s.Require().NotNil(s.createdAsset2)
+
+	tx := models.Transaction{
+		Type:      "deposit",
+		AssetID:   s.createdAsset2.ID,
+		Amount:    10.0,
+		Notes:     "ETH deposit for allocation test",
+		Timestamp: time.Now(),
+	}
+	body, _ := json.Marshal(tx)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+	s.Equal(http.StatusCreated, w.Code)
+
+	req = httptest.NewRequest(http.MethodGet, "/api/portfolio/allocation", nil)
+	w = httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+
+	var result map[string]interface{}
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+
+	allocations, ok := result["allocations"].([]interface{})
+	s.True(ok)
+	s.Len(allocations, 2)
+
+	for _, alloc := range allocations {
+		entry := alloc.(map[string]interface{})
+		s.Contains(entry, "asset_id")
+		s.Contains(entry, "symbol")
+		s.Contains(entry, "amount")
+		s.Contains(entry, "value")
+		s.Contains(entry, "percentage")
+	}
+}
+
+func (s *ControllerTestSuite) Test64_Portfolio_Performance() {
+	req := httptest.NewRequest(http.MethodGet, "/api/portfolio/performance", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+
+	var result map[string]interface{}
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+
+	s.Contains(result, "total_cost_basis")
+	s.Contains(result, "total_current_value")
+	s.Contains(result, "total_profit_loss")
+	s.Contains(result, "total_profit_percent")
+	s.Contains(result, "assets")
+
+	assets, ok := result["assets"].([]interface{})
+	s.True(ok)
+	s.GreaterOrEqual(len(assets), 0)
+
+	for _, asset := range assets {
+		entry := asset.(map[string]interface{})
+		s.Contains(entry, "asset_id")
+		s.Contains(entry, "symbol")
+		s.Contains(entry, "cost_basis")
+		s.Contains(entry, "current_value")
+		s.Contains(entry, "profit_loss")
+		s.Contains(entry, "profit_percentage")
+	}
+}
+
+func (s *ControllerTestSuite) Test65_Portfolio_History() {
+	req := httptest.NewRequest(http.MethodGet, "/api/portfolio/history", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+
+	var result map[string]interface{}
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+
+	s.Contains(result, "days")
+	s.Contains(result, "history")
+
+	s.Equal(float64(30), result["days"])
+
+	history, ok := result["history"].([]interface{})
+	s.True(ok)
+	s.Len(history, 30)
+
+	for _, point := range history {
+		entry := point.(map[string]interface{})
+		s.Contains(entry, "date")
+		s.Contains(entry, "value")
+	}
+}
+
+func (s *ControllerTestSuite) Test66_Portfolio_HistoryWithDaysParam() {
+	req := httptest.NewRequest(http.MethodGet, "/api/portfolio/history?days=7", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+
+	var result map[string]interface{}
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+
+	s.Equal(float64(7), result["days"])
+
+	history, ok := result["history"].([]interface{})
+	s.True(ok)
+	s.Len(history, 7)
+}
+
+func (s *ControllerTestSuite) Test67_Portfolio_HistoryInvalidDays() {
+	req := httptest.NewRequest(http.MethodGet, "/api/portfolio/history?days=invalid", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+
+	var result map[string]interface{}
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+
+	s.Equal(float64(30), result["days"])
+}
+
+func (s *ControllerTestSuite) Test68_Portfolio_HoldingsAfterExchange() {
+	s.Require().NotNil(s.createdAsset)
+	s.Require().NotNil(s.createdAsset2)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/portfolio/summary", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+	s.Equal(http.StatusOK, w.Code)
+
+	var beforeResult map[string]interface{}
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &beforeResult))
+
+	beforeHoldings := make(map[string]float64)
+	for _, h := range beforeResult["holdings"].([]interface{}) {
+		entry := h.(map[string]interface{})
+		beforeHoldings[entry["symbol"].(string)] = entry["amount"].(float64)
+	}
+
+	exchange := models.Exchange{
+		FromAssetID: s.createdAsset.ID,
+		ToAssetID:   s.createdAsset2.ID,
+		FromAmount:  1.0,
+		ToAmount:    15.0,
+		Notes:       "Exchange for portfolio test",
+		Timestamp:   time.Now(),
+	}
+	body, _ := json.Marshal(exchange)
+
+	req = httptest.NewRequest(http.MethodPost, "/api/exchanges", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w = httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+	s.Equal(http.StatusCreated, w.Code)
+
+	req = httptest.NewRequest(http.MethodGet, "/api/portfolio/summary", nil)
+	w = httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+
+	var afterResult map[string]interface{}
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &afterResult))
+
+	holdings, ok := afterResult["holdings"].([]interface{})
+	s.True(ok)
+	s.Len(holdings, 2)
+
+	afterHoldings := make(map[string]float64)
+	for _, h := range holdings {
+		entry := h.(map[string]interface{})
+		afterHoldings[entry["symbol"].(string)] = entry["amount"].(float64)
+	}
+
+	s.Equal(beforeHoldings["BTC"]-1.0, afterHoldings["BTC"])
+	s.Equal(beforeHoldings["ETH"]+15.0, afterHoldings["ETH"])
 }
 
 // Delete Tests

@@ -15,6 +15,7 @@ type Repository interface {
 	// Transactions
 	ListTransactions(filter repo.TransactionFilter) (*repo.TransactionListResult, error)
 	GetTransactionByID(id int64) (*models.Transaction, error)
+	GetAllTransactions() ([]models.Transaction, error)
 	CreateTransaction(tx *models.Transaction) error
 	UpdateTransaction(tx *models.Transaction) error
 	DeleteTransaction(id int64) error
@@ -22,10 +23,12 @@ type Repository interface {
 	// Exchanges
 	ListExchanges(filter repo.ExchangeFilter) (*repo.ExchangeListResult, error)
 	GetExchangeByID(id int64) (*models.Exchange, error)
+	GetAllExchanges() ([]models.Exchange, error)
 	CreateExchange(exchange *models.Exchange) error
 	UpdateExchange(exchange *models.Exchange) error
 	DeleteExchange(id int64) error
 
 	// Price history
 	SelectAllByAsset(assetID int64) ([]models.AssetHistoricValue, error)
+	Insert(value *models.AssetHistoricValue) error
 }

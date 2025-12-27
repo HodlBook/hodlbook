@@ -60,12 +60,20 @@ First phase focuses on backend API development.
 - [x] Daily price storage via background scheduler
 - [x] Historic value repository
 
+### Price API
+- [x] `GET /api/prices` - List all current prices from cache
+- [x] `GET /api/prices/:symbol` - Get current price for specific asset
+- [x] `GET /api/prices/history/:id` - Get historic prices for asset
+- [x] `GET /api/prices/stream` - SSE endpoint for live price updates
+
 ### Infrastructure
 - [x] Graceful shutdown handling (signal handling)
 - [x] Structured logging (slog)
 - [x] Scheduler package (ticker-based)
 - [x] In-memory pubsub package
 - [x] In-memory cache package
+- [x] Repository interface abstraction (`pkg/types/repo`)
+- [x] Cache interface abstraction (`pkg/types/cache`)
 
 ## In Progress
 
@@ -74,10 +82,6 @@ First phase focuses on backend API development.
 - [ ] `GET /api/portfolio/allocation` - Wallet share by asset
 - [ ] `GET /api/portfolio/performance` - Profit/loss calculations
 - [ ] `GET /api/portfolio/history` - Portfolio value over time
-
-### Price API
-- [ ] `GET /api/prices/:asset` - Get current price from cache
-- [ ] `GET /api/prices/:asset/history` - Get historic prices for asset
 
 ## Pending
 

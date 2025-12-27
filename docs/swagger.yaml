@@ -402,7 +402,7 @@ paths:
       - exchanges
   /api/portfolio/allocation:
     get:
-      description: Get the portfolio allocation by asset
+      description: Get the portfolio allocation by asset with percentages
       produces:
       - application/json
       responses:
@@ -411,12 +411,23 @@ paths:
           schema:
             additionalProperties: true
             type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
       summary: Get portfolio allocation
       tags:
       - portfolio
-  /api/portfolio/summary:
+  /api/portfolio/history:
     get:
-      description: Get the total portfolio value
+      description: Get portfolio value over time using historic prices
+      parameters:
+      - description: Number of days of history (default 30)
+        in: query
+        name: days
+        type: integer
       produces:
       - application/json
       responses:
@@ -424,6 +435,52 @@ paths:
           description: OK
           schema:
             additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get portfolio history
+      tags:
+      - portfolio
+  /api/portfolio/performance:
+    get:
+      description: Get profit/loss calculations per asset
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get portfolio performance
+      tags:
+      - portfolio
+  /api/portfolio/summary:
+    get:
+      description: Get the total portfolio value with holdings breakdown
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            additionalProperties: true
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
             type: object
       summary: Get portfolio summary
       tags:

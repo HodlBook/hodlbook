@@ -2,15 +2,25 @@ package controller
 
 import (
 	"hodlbook/pkg/types/cache"
+	"hodlbook/pkg/types/pubsub"
 	"hodlbook/pkg/types/repo"
+	"log/slog"
 )
 
 type Controller struct {
-	repo       repo.Repository
-	priceCache cache.Cache[string, float64]
+	logger          slog.Logger
+	repo            repo.Repository
+	priceCache      cache.Cache[string, float64]
+	assetCreatedPub pubsub.Publisher
 }
 
 type Option func(*Controller)
+
+func WithLogger(l slog.Logger) Option {
+	return func(c *Controller) {
+		c.logger = l
+	}
+}
 
 func WithRepository(r repo.Repository) Option {
 	return func(c *Controller) {
@@ -21,6 +31,12 @@ func WithRepository(r repo.Repository) Option {
 func WithPriceCache(pc cache.Cache[string, float64]) Option {
 	return func(c *Controller) {
 		c.priceCache = pc
+	}
+}
+
+func WithAssetCreatedPublisher(p pubsub.Publisher) Option {
+	return func(c *Controller) {
+		c.assetCreatedPub = p
 	}
 }
 
