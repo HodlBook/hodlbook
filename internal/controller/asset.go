@@ -23,7 +23,7 @@ import (
 func (c *Controller) ListAssets(ctx *gin.Context) {
 	assets, err := c.repo.GetAllAssets()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch assets"})
+		internalError(ctx, "failed to fetch assets")
 		return
 	}
 	ctx.JSON(http.StatusOK, assets)
@@ -42,13 +42,13 @@ func (c *Controller) ListAssets(ctx *gin.Context) {
 func (c *Controller) GetAsset(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid asset ID"})
+		badRequest(ctx, "invalid asset id")
 		return
 	}
 
 	asset, err := c.repo.GetAssetByID(id)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Asset not found"})
+		notFound(ctx, "asset not found")
 		return
 	}
 
@@ -69,19 +69,20 @@ func (c *Controller) GetAsset(ctx *gin.Context) {
 func (c *Controller) CreateAsset(ctx *gin.Context) {
 	var asset models.Asset
 	if err := ctx.ShouldBindJSON(&asset); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
+		badRequestWithDetails(ctx, "invalid input", err.Error())
 		return
 	}
 
 	if err := c.repo.CreateAsset(&asset); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create asset"})
+		internalError(ctx, "failed to create asset")
 		return
 	}
 
-	if data, err := json.Marshal(asset); err == nil {
-		err = c.assetCreatedPub.Publish(data)
-		if err != nil {
-			c.logger.Error("failed to publish asset created event", "pubsub", err)
+	if c.assetCreatedPub != nil {
+		if data, err := json.Marshal(asset); err == nil {
+			if pubErr := c.assetCreatedPub.Publish(data); pubErr != nil {
+				c.logger.Error("failed to publish asset created event", "error", pubErr)
+			}
 		}
 	}
 
@@ -101,12 +102,12 @@ func (c *Controller) CreateAsset(ctx *gin.Context) {
 func (c *Controller) DeleteAsset(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid asset ID"})
+		badRequest(ctx, "invalid asset id")
 		return
 	}
 
 	if err := c.repo.DeleteAsset(id); err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete asset"})
+		internalError(ctx, "failed to delete asset")
 		return
 	}
 

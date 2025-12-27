@@ -26,6 +26,7 @@ func SSEPrices(priceCh <-chan []byte) gin.HandlerFunc {
 					return false
 				}
 				c.SSEvent("prices", string(msg))
+				c.Writer.Flush()
 				return true
 			case <-c.Request.Context().Done():
 				return false

@@ -62,7 +62,7 @@ func (c *Controller) ListTransactions(ctx *gin.Context) {
 
 	result, err := c.repo.ListTransactions(filter)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch transactions"})
+		internalError(ctx, "failed to fetch transactions")
 		return
 	}
 	ctx.JSON(http.StatusOK, result)
@@ -81,13 +81,13 @@ func (c *Controller) ListTransactions(ctx *gin.Context) {
 func (c *Controller) GetTransaction(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid transaction ID"})
+		badRequest(ctx, "invalid transaction id")
 		return
 	}
 
 	tx, err := c.repo.GetTransactionByID(id)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Transaction not found"})
+		notFound(ctx, "transaction not found")
 		return
 	}
 
@@ -108,7 +108,7 @@ func (c *Controller) GetTransaction(ctx *gin.Context) {
 func (c *Controller) CreateTransaction(ctx *gin.Context) {
 	var tx models.Transaction
 	if err := ctx.ShouldBindJSON(&tx); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
+		badRequestWithDetails(ctx, "invalid input", err.Error())
 		return
 	}
 
@@ -117,7 +117,7 @@ func (c *Controller) CreateTransaction(ctx *gin.Context) {
 	}
 
 	if err := c.repo.CreateTransaction(&tx); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create transaction"})
+		internalError(ctx, "failed to create transaction")
 		return
 	}
 
@@ -140,24 +140,24 @@ func (c *Controller) CreateTransaction(ctx *gin.Context) {
 func (c *Controller) UpdateTransaction(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid transaction ID"})
+		badRequest(ctx, "invalid transaction id")
 		return
 	}
 
 	if _, err = c.repo.GetTransactionByID(id); err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Transaction not found"})
+		notFound(ctx, "transaction not found")
 		return
 	}
 
 	var tx models.Transaction
 	if err := ctx.ShouldBindJSON(&tx); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
+		badRequestWithDetails(ctx, "invalid input", err.Error())
 		return
 	}
 
 	tx.ID = id
 	if err := c.repo.UpdateTransaction(&tx); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update transaction"})
+		internalError(ctx, "failed to update transaction")
 		return
 	}
 
@@ -176,12 +176,12 @@ func (c *Controller) UpdateTransaction(ctx *gin.Context) {
 func (c *Controller) DeleteTransaction(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid transaction ID"})
+		badRequest(ctx, "invalid transaction id")
 		return
 	}
 
 	if err := c.repo.DeleteTransaction(id); err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete transaction"})
+		internalError(ctx, "failed to delete transaction")
 		return
 	}
 

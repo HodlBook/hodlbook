@@ -16,7 +16,7 @@ import (
 // @Router /api/prices [get]
 func (c *Controller) ListPrices(ctx *gin.Context) {
 	if c.priceCache == nil {
-		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "Price service not available"})
+		serviceUnavailable(ctx, "price service not available")
 		return
 	}
 	prices := make(map[string]float64)
@@ -39,14 +39,14 @@ func (c *Controller) ListPrices(ctx *gin.Context) {
 // @Router /api/prices/{symbol} [get]
 func (c *Controller) GetPrice(ctx *gin.Context) {
 	if c.priceCache == nil {
-		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "Price service not available"})
+		serviceUnavailable(ctx, "price service not available")
 		return
 	}
 	symbol := ctx.Param("symbol")
 
 	price, ok := c.priceCache.Get(symbol)
 	if !ok {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Price not found for symbol"})
+		notFound(ctx, "price not found for symbol")
 		return
 	}
 
@@ -69,13 +69,13 @@ func (c *Controller) GetPrice(ctx *gin.Context) {
 func (c *Controller) GetPriceHistory(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid asset ID"})
+		badRequest(ctx, "invalid asset id")
 		return
 	}
 
 	history, err := c.repo.SelectAllByAsset(id)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch price history"})
+		internalError(ctx, "failed to fetch price history")
 		return
 	}
 

@@ -70,7 +70,7 @@ func (c *Controller) ListExchanges(ctx *gin.Context) {
 
 	result, err := c.repo.ListExchanges(filter)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch exchanges"})
+		internalError(ctx, "failed to fetch exchanges")
 		return
 	}
 	ctx.JSON(http.StatusOK, result)
@@ -89,13 +89,13 @@ func (c *Controller) ListExchanges(ctx *gin.Context) {
 func (c *Controller) GetExchange(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid exchange ID"})
+		badRequest(ctx, "invalid exchange id")
 		return
 	}
 
 	exchange, err := c.repo.GetExchangeByID(id)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Exchange not found"})
+		notFound(ctx, "exchange not found")
 		return
 	}
 
@@ -116,12 +116,12 @@ func (c *Controller) GetExchange(ctx *gin.Context) {
 func (c *Controller) CreateExchange(ctx *gin.Context) {
 	var exchange models.Exchange
 	if err := ctx.ShouldBindJSON(&exchange); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
+		badRequestWithDetails(ctx, "invalid input", err.Error())
 		return
 	}
 
 	if exchange.FromAssetID == exchange.ToAssetID {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "From and To assets must be different"})
+		badRequest(ctx, "from and to assets must be different")
 		return
 	}
 
@@ -130,7 +130,7 @@ func (c *Controller) CreateExchange(ctx *gin.Context) {
 	}
 
 	if err := c.repo.CreateExchange(&exchange); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create exchange"})
+		internalError(ctx, "failed to create exchange")
 		return
 	}
 
@@ -153,29 +153,29 @@ func (c *Controller) CreateExchange(ctx *gin.Context) {
 func (c *Controller) UpdateExchange(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid exchange ID"})
+		badRequest(ctx, "invalid exchange id")
 		return
 	}
 
 	if _, err = c.repo.GetExchangeByID(id); err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Exchange not found"})
+		notFound(ctx, "exchange not found")
 		return
 	}
 
 	var exchange models.Exchange
 	if err := ctx.ShouldBindJSON(&exchange); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
+		badRequestWithDetails(ctx, "invalid input", err.Error())
 		return
 	}
 
 	if exchange.FromAssetID == exchange.ToAssetID {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "From and To assets must be different"})
+		badRequest(ctx, "from and to assets must be different")
 		return
 	}
 
 	exchange.ID = id
 	if err := c.repo.UpdateExchange(&exchange); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update exchange"})
+		internalError(ctx, "failed to update exchange")
 		return
 	}
 
@@ -194,12 +194,12 @@ func (c *Controller) UpdateExchange(ctx *gin.Context) {
 func (c *Controller) DeleteExchange(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid exchange ID"})
+		badRequest(ctx, "invalid exchange id")
 		return
 	}
 
 	if err := c.repo.DeleteExchange(id); err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete exchange"})
+		internalError(ctx, "failed to delete exchange")
 		return
 	}
 

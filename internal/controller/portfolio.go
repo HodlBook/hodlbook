@@ -93,13 +93,13 @@ func (c *Controller) getAssetSymbols() (map[int64]string, error) {
 func (c *Controller) PortfolioSummary(ctx *gin.Context) {
 	holdings, err := c.calculateHoldings()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate holdings"})
+		internalError(ctx, "failed to calculate holdings")
 		return
 	}
 
 	symbols, err := c.getAssetSymbols()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get assets"})
+		internalError(ctx, "failed to get assets")
 		return
 	}
 
@@ -147,13 +147,13 @@ func (c *Controller) PortfolioSummary(ctx *gin.Context) {
 func (c *Controller) PortfolioAllocation(ctx *gin.Context) {
 	holdings, err := c.calculateHoldings()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate holdings"})
+		internalError(ctx, "failed to calculate holdings")
 		return
 	}
 
 	symbols, err := c.getAssetSymbols()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get assets"})
+		internalError(ctx, "failed to get assets")
 		return
 	}
 
@@ -209,25 +209,25 @@ func (c *Controller) PortfolioAllocation(ctx *gin.Context) {
 func (c *Controller) PortfolioPerformance(ctx *gin.Context) {
 	holdings, err := c.calculateHoldings()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate holdings"})
+		internalError(ctx, "failed to calculate holdings")
 		return
 	}
 
 	symbols, err := c.getAssetSymbols()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get assets"})
+		internalError(ctx, "failed to get assets")
 		return
 	}
 
 	transactions, err := c.repo.GetAllTransactions()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get transactions"})
+		internalError(ctx, "failed to get transactions")
 		return
 	}
 
 	assets, err := c.repo.GetAllAssets()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get assets"})
+		internalError(ctx, "failed to get assets")
 		return
 	}
 
@@ -270,7 +270,7 @@ func (c *Controller) PortfolioPerformance(ctx *gin.Context) {
 
 	exchanges, err := c.repo.GetAllExchanges()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get exchanges"})
+		internalError(ctx, "failed to get exchanges")
 		return
 	}
 
@@ -402,13 +402,13 @@ func (c *Controller) PortfolioHistory(ctx *gin.Context) {
 
 	assets, err := c.repo.GetAllAssets()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to get assets"})
+		internalError(ctx, "failed to get assets")
 		return
 	}
 
 	holdings, err := c.calculateHoldings()
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to calculate holdings"})
+		internalError(ctx, "failed to calculate holdings")
 		return
 	}
 

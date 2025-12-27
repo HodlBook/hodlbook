@@ -75,25 +75,21 @@ First phase focuses on backend API development.
 - [x] Repository interface abstraction (`pkg/types/repo`)
 - [x] Cache interface abstraction (`pkg/types/cache`)
 
-## In Progress
-
 ### Portfolio Analytics
-- [ ] `GET /api/portfolio/summary` - Total portfolio value
-- [ ] `GET /api/portfolio/allocation` - Wallet share by asset
-- [ ] `GET /api/portfolio/performance` - Profit/loss calculations
-- [ ] `GET /api/portfolio/history` - Portfolio value over time
+- [x] `GET /api/portfolio/summary` - Total portfolio value with holdings breakdown
+- [x] `GET /api/portfolio/allocation` - Wallet share by asset with percentages
+- [x] `GET /api/portfolio/performance` - Profit/loss calculations per asset
+- [x] `GET /api/portfolio/history` - Portfolio value over time (configurable days)
 
 ## Pending
 
 ### Testing
-- [ ] Handler-level tests
 - [ ] Integration tests for API endpoints
-- [ ] Service-level tests
+- [x] Service-level tests
 
 ### Infrastructure
 - [ ] `GET /api/health` endpoint
 - [ ] Hot-reload for development (Air)
-- [ ] Standardized error messages
 
 ### Frontend (htmx)
 - [ ] Layout component
