@@ -1,40 +1,31 @@
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apk add --no-cache gcc musl-dev sqlite-dev
+RUN apk add --no-cache gcc musl-dev
 
-# Copy go mod files
 COPY go.mod go.sum ./
 RUN go mod download
 
-# Copy source code
 COPY . .
 
-# Build the application
-RUN CGO_ENABLED=1 GOOS=linux go build -o hodlbook ./cmd/hodlbook
+RUN CGO_ENABLED=1 GOOS=linux go build -ldflags="-s -w" -o hodlbook ./cmd/main.go
 
-# Final stage
-FROM alpine:latest
+FROM alpine:3.21
 
 WORKDIR /app
 
-# Install runtime dependencies
-RUN apk add --no-cache sqlite-libs ca-certificates
+RUN apk add --no-cache ca-certificates sqlite
 
-# Copy binary from builder
 COPY --from=builder /app/hodlbook .
+COPY --from=builder /app/static ./static
+COPY --from=builder /app/docs ./docs
 
-# Copy templates and static files
-COPY templates ./templates
-COPY static ./static
+ENV APP_PORT=8080
+ENV DB_PATH=/data/hodlbook.db
 
-# Create data directory
-RUN mkdir -p /app/data
-
-# Expose port
 EXPOSE 8080
 
-# Run the application
+VOLUME ["/data"]
+
 CMD ["./hodlbook"]

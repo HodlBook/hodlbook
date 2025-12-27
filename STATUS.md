@@ -83,10 +83,6 @@ First phase focuses on backend API development.
 
 ## Pending
 
-### Testing
-- [ ] Integration tests for API endpoints
-- [x] Service-level tests
-
 ### Infrastructure
 - [ ] `GET /api/health` endpoint
 - [ ] Hot-reload for development (Air)
