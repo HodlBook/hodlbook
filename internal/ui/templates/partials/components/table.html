@@ -1,0 +1,105 @@
+{{define "table"}}
+<div class="table-container" x-data="{ sortCol: '', sortDir: 'asc' }">
+    {{if .Filters}}
+    <div class="table-filters">
+        {{range .Filters}}
+        <div class="filter-group">
+            <label>{{.Label}}</label>
+            {{if eq .Type "select"}}
+            <select name="{{.Name}}" hx-get="{{$.FilterURL}}" hx-target="#{{$.TableID}}" hx-include="closest .table-filters">
+                {{range .Options}}
+                <option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>
+                {{end}}
+            </select>
+            {{else if eq .Type "date"}}
+            <input type="date" name="{{.Name}}" hx-get="{{$.FilterURL}}" hx-target="#{{$.TableID}}" hx-include="closest .table-filters">
+            {{else}}
+            <input type="text" name="{{.Name}}" placeholder="{{.Placeholder}}" hx-get="{{$.FilterURL}}" hx-target="#{{$.TableID}}" hx-trigger="keyup changed delay:300ms" hx-include="closest .table-filters">
+            {{end}}
+        </div>
+        {{end}}
+    </div>
+    {{end}}
+
+    <table class="data-table" id="{{.TableID}}">
+        <thead>
+            <tr>
+                {{range .Columns}}
+                <th class="{{.Class}}" {{if .Sortable}}
+                    @click="sortCol = '{{.Key}}'; sortDir = sortCol === '{{.Key}}' && sortDir === 'asc' ? 'desc' : 'asc'"
+                    hx-get="{{$.SortURL}}?sort={{.Key}}&dir="
+                    hx-vals="js:{dir: sortDir}"
+                    hx-target="#{{$.TableID}}"
+                    style="cursor: pointer"
+                {{end}}>
+                    {{.Label}}
+                    {{if .Sortable}}
+                    <span class="sort-indicator" x-show="sortCol === '{{.Key}}'">
+                        <span x-show="sortDir === 'asc'">&uarr;</span>
+                        <span x-show="sortDir === 'desc'">&darr;</span>
+                    </span>
+                    {{end}}
+                </th>
+                {{end}}
+            </tr>
+        </thead>
+        <tbody>
+            {{if .Rows}}
+                {{range .Rows}}
+                <tr>
+                    {{range .Cells}}
+                    <td class="{{.Class}}">{{.Content}}</td>
+                    {{end}}
+                </tr>
+                {{end}}
+            {{else}}
+                {{template "empty-state" .EmptyState}}
+            {{end}}
+        </tbody>
+    </table>
+
+    {{if .Pagination}}
+    {{template "pagination" .Pagination}}
+    {{end}}
+</div>
+{{end}}
+
+{{define "pagination"}}
+<div class="pagination">
+    <span class="pagination-info">
+        Showing {{.From}} to {{.To}} of {{.Total}}
+    </span>
+    <div class="pagination-controls">
+        <button
+            {{if .HasPrev}}
+            hx-get="{{.URL}}?page={{sub .CurrentPage 1}}"
+            hx-target="{{.Target}}"
+            {{else}}
+            disabled
+            {{end}}
+            class="btn btn-sm">
+            Prev
+        </button>
+
+        {{range .Pages}}
+        <button
+            hx-get="{{$.URL}}?page={{.}}"
+            hx-target="{{$.Target}}"
+            class="btn btn-sm {{if eq . $.CurrentPage}}active{{end}}">
+            {{.}}
+        </button>
+        {{end}}
+
+        <button
+            {{if .HasNext}}
+            hx-get="{{.URL}}?page={{add .CurrentPage 1}}"
+            hx-target="{{.Target}}"
+            {{else}}
+            disabled
+            {{end}}
+            class="btn btn-sm">
+            Next
+        </button>
+    </div>
+</div>
+{{end}}

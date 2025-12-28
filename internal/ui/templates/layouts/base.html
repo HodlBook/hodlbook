@@ -1,0 +1,167 @@
+{{define "base"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{if .Title}}{{.Title}} - {{end}}HodlBook</title>
+    <link rel="icon" type="image/png" href="/static/icon.png">
+    <link rel="stylesheet" href="/static/css/styles.css">
+    <script src="/static/js/chart.min.js"></script>
+    <script src="/static/js/charts.js"></script>
+    <script src="/static/js/htmx.min.js" defer></script>
+    <script src="/static/js/alpine.min.js" defer></script>
+</head>
+<body x-data="{ sidebarOpen: true }" class="app">
+    {{template "sidebar" .}}
+
+    <main class="main-content" :class="{ 'sidebar-collapsed': !sidebarOpen }">
+        {{template "navbar" .}}
+
+        <div class="page-content">
+            {{template "content" .}}
+        </div>
+
+        {{template "toast" .}}
+    </main>
+
+    {{block "scripts" .}}{{end}}
+    <script>
+    document.body.addEventListener('htmx:afterSwap', function(event) {
+        Alpine.initTree(event.detail.target);
+    });
+    </script>
+</body>
+</html>
+{{end}}
+
+{{define "sidebar"}}
+<aside class="sidebar" :class="{ 'collapsed': !sidebarOpen }">
+    <div class="sidebar-header">
+        <a href="/" class="logo">
+            <span class="logo-icon">₿</span>
+            <span class="logo-text" x-show="sidebarOpen">HodlBook</span>
+        </a>
+        <button @click="sidebarOpen = !sidebarOpen" class="sidebar-toggle">
+            <svg x-show="sidebarOpen" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M15 18l-6-6 6-6"/>
+            </svg>
+            <svg x-show="!sidebarOpen" xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M9 18l6-6-6-6"/>
+            </svg>
+        </button>
+    </div>
+
+    <nav class="sidebar-nav">
+        <a href="/" class="nav-item {{if eq .ActivePage "dashboard"}}active{{end}}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="7" height="7"/>
+                <rect x="14" y="3" width="7" height="7"/>
+                <rect x="14" y="14" width="7" height="7"/>
+                <rect x="3" y="14" width="7" height="7"/>
+            </svg>
+            <span x-show="sidebarOpen">Dashboard</span>
+        </a>
+
+        <a href="/portfolio" class="nav-item {{if eq .ActivePage "portfolio"}}active{{end}}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/>
+                <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/>
+                <path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z"/>
+            </svg>
+            <span x-show="sidebarOpen">Portfolio</span>
+        </a>
+
+        <a href="/assets" class="nav-item {{if eq .ActivePage "assets"}}active{{end}}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 6v12M6 12h12"/>
+            </svg>
+            <span x-show="sidebarOpen">Assets</span>
+        </a>
+
+        <a href="/transactions" class="nav-item {{if eq .ActivePage "transactions"}}active{{end}}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+            <span x-show="sidebarOpen">Transactions</span>
+        </a>
+
+        <a href="/exchanges" class="nav-item {{if eq .ActivePage "exchanges"}}active{{end}}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/>
+            </svg>
+            <span x-show="sidebarOpen">Exchanges</span>
+        </a>
+
+        <a href="/prices" class="nav-item {{if eq .ActivePage "prices"}}active{{end}}">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M3 3v18h18"/>
+                <path d="M18 17V9"/>
+                <path d="M13 17V5"/>
+                <path d="M8 17v-3"/>
+            </svg>
+            <span x-show="sidebarOpen">Prices</span>
+        </a>
+    </nav>
+</aside>
+{{end}}
+
+{{define "navbar"}}
+<header class="navbar">
+    <div class="navbar-left">
+        <h1 class="page-title">{{.PageTitle}}</h1>
+    </div>
+    <div class="navbar-right">
+        <div class="live-indicator" x-data="healthCheck()" x-init="start()">
+            <span class="status-dot" :class="connected ? 'connected' : 'disconnected'"></span>
+            <span x-text="connected ? 'Live' : 'Offline'"></span>
+        </div>
+    </div>
+</header>
+<script>
+function healthCheck() {
+    return {
+        connected: false,
+        async check() {
+            try {
+                const res = await fetch('/api/health');
+                this.connected = res.ok;
+            } catch {
+                this.connected = false;
+            }
+        },
+        start() {
+            this.check();
+            setInterval(() => this.check(), 10000);
+        }
+    }
+}
+</script>
+{{end}}
+
+{{define "toast"}}
+<div x-data="toast()" x-on:show-toast.window="show($event.detail)" class="toast-container">
+    <template x-for="(t, index) in toasts" :key="index">
+        <div class="toast" :class="t.type" x-show="t.visible" x-transition>
+            <span x-text="t.message"></span>
+            <button @click="dismiss(index)" class="toast-close">&times;</button>
+        </div>
+    </template>
+</div>
+<script>
+function toast() {
+    return {
+        toasts: [],
+        show(detail) {
+            const t = { message: detail.message, type: detail.type || 'info', visible: true };
+            this.toasts.push(t);
+            setTimeout(() => { t.visible = false; }, 4000);
+        },
+        dismiss(index) {
+            this.toasts[index].visible = false;
+        }
+    }
+}
+</script>
+{{end}}

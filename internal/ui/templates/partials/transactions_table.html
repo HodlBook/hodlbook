@@ -1,0 +1,75 @@
+{{if .Empty}}
+<div class="empty-state">
+    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+    </svg>
+    <h3>No Transactions</h3>
+    <p>Add your first transaction to start tracking.</p>
+    <button class="btn btn-primary" @click="$dispatch('open-add-transaction')">Add Transaction</button>
+</div>
+{{else}}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Asset</th>
+            <th class="text-right">Amount</th>
+            <th>Notes</th>
+            <th class="text-right">Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Transactions}}
+        <tr>
+            <td>{{.Date}}</td>
+            <td>
+                <span class="badge badge-{{.TypeClass}}">{{.Type}}</span>
+            </td>
+            <td>
+                <span class="asset-symbol">{{.Symbol}}</span>
+            </td>
+            <td class="text-right font-medium">{{.Amount}}</td>
+            <td class="text-muted truncate">{{if .Notes}}{{.Notes}}{{else}}-{{end}}</td>
+            <td class="text-right">
+                <div class="action-buttons">
+                    <button class="btn btn-sm btn-icon btn-secondary"
+                        @click="$dispatch('open-edit-transaction', {id: {{.ID}}, type: '{{.Type}}', asset_id: '{{.AssetID}}', amount: {{.AmountRaw}}, timestamp: '{{.Timestamp}}', notes: '{{.Notes}}'})">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                        </svg>
+                    </button>
+                    <button class="btn btn-sm btn-icon btn-danger"
+                        @click="$dispatch('open-delete-transaction', {id: {{.ID}}})">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+                        </svg>
+                    </button>
+                </div>
+            </td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+
+{{if gt .TotalPages 1}}
+<div class="pagination">
+    <span class="pagination-info">Page {{.Page}} of {{.TotalPages}}</span>
+    <div class="pagination-controls">
+        <button class="btn btn-sm" {{if not .HasPrev}}disabled{{end}}
+            hx-get="/partials/transactions/table?page={{if .HasPrev}}{{sub .Page 1}}{{else}}1{{end}}"
+            hx-target="#transactions-table-container"
+            hx-include=".filters-row select, .filters-row input">
+            Prev
+        </button>
+        <button class="btn btn-sm" {{if not .HasNext}}disabled{{end}}
+            hx-get="/partials/transactions/table?page={{if .HasNext}}{{add .Page 1}}{{else}}{{.TotalPages}}{{end}}"
+            hx-target="#transactions-table-container"
+            hx-include=".filters-row select, .filters-row input">
+            Next
+        </button>
+    </div>
+</div>
+{{end}}
+{{end}}

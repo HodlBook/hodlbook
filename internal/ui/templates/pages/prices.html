@@ -1,0 +1,92 @@
+{{define "content"}}
+<div class="prices-page" x-data="pricesPage()">
+    <section class="page-header">
+        <div class="page-header-content">
+            <h2>Live Prices</h2>
+            <p class="text-muted">Real-time cryptocurrency prices from configured providers.</p>
+        </div>
+        <div class="page-header-actions">
+            <div class="sse-status" :class="connected ? 'connected' : 'disconnected'">
+                <span class="status-indicator"></span>
+                <span x-text="connected ? 'Connected' : 'Disconnected'"></span>
+            </div>
+        </div>
+    </section>
+
+    <section class="prices-grid">
+        <div id="prices-table-container" hx-get="/partials/prices/table" hx-trigger="load" hx-swap="innerHTML">
+            <div class="skeleton-grid">
+                <div class="skeleton-card"><div class="skeleton text lg"></div><div class="skeleton text"></div></div>
+                <div class="skeleton-card"><div class="skeleton text lg"></div><div class="skeleton text"></div></div>
+                <div class="skeleton-card"><div class="skeleton text lg"></div><div class="skeleton text"></div></div>
+                <div class="skeleton-card"><div class="skeleton text lg"></div><div class="skeleton text"></div></div>
+            </div>
+        </div>
+    </section>
+</div>
+
+<script>
+function pricesPage() {
+    return {
+        connected: false,
+        prices: {},
+        init() {
+            this.connectSSE();
+        },
+        connectSSE() {
+            const eventSource = new EventSource('/api/prices/stream');
+
+            eventSource.onopen = () => {
+                this.connected = true;
+            };
+
+            eventSource.addEventListener('prices', (event) => {
+                try {
+                    const data = JSON.parse(event.data);
+                    this.updatePrices(data);
+                } catch (e) {
+                    console.error('Failed to parse price data:', e);
+                }
+            });
+
+            eventSource.onerror = () => {
+                this.connected = false;
+                eventSource.close();
+                setTimeout(() => this.connectSSE(), 5000);
+            };
+        },
+        updatePrices(data) {
+            for (const [symbol, price] of Object.entries(data)) {
+                const priceEl = document.querySelector(`[data-price-symbol="${symbol}"]`);
+                if (priceEl) {
+                    const oldPrice = parseFloat(priceEl.dataset.priceValue) || 0;
+                    const newPrice = parseFloat(price);
+
+                    priceEl.dataset.priceValue = newPrice;
+                    priceEl.textContent = this.formatCurrency(newPrice);
+
+                    priceEl.classList.remove('price-up', 'price-down');
+                    if (newPrice > oldPrice) {
+                        priceEl.classList.add('price-up');
+                    } else if (newPrice < oldPrice) {
+                        priceEl.classList.add('price-down');
+                    }
+
+                    setTimeout(() => {
+                        priceEl.classList.remove('price-up', 'price-down');
+                    }, 1000);
+                }
+            }
+        },
+        formatCurrency(value) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: value < 1 ? 6 : 2
+            }).format(value);
+        }
+    }
+}
+</script>
+{{end}}

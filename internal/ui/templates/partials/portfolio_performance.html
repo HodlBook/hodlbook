@@ -1,0 +1,46 @@
+{{if .Empty}}
+<div class="empty-state">
+    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M3 3v18h18"/>
+        <path d="M18 17V9"/>
+        <path d="M13 17V5"/>
+        <path d="M8 17v-3"/>
+    </svg>
+    <h3>No Performance Data</h3>
+    <p>Add transactions to see performance metrics.</p>
+</div>
+{{else}}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Asset</th>
+            <th class="text-right">Cost Basis</th>
+            <th class="text-right">Current Value</th>
+            <th class="text-right">P/L</th>
+            <th class="text-right">P/L %</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Assets}}
+        <tr>
+            <td>
+                <span class="asset-symbol">{{.Symbol}}</span>
+            </td>
+            <td class="text-right">{{.CostBasis}}</td>
+            <td class="text-right">{{.Value}}</td>
+            <td class="text-right {{if .Positive}}positive{{else}}negative{{end}}">{{.PnL}}</td>
+            <td class="text-right {{if .Positive}}positive{{else}}negative{{end}}">{{.PnLPct}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+    <tfoot>
+        <tr class="table-footer">
+            <td><strong>Total</strong></td>
+            <td class="text-right"><strong>{{.TotalCostBasis}}</strong></td>
+            <td class="text-right"><strong>{{.TotalValue}}</strong></td>
+            <td class="text-right {{if .IsPositive}}positive{{else}}negative{{end}}"><strong>{{.TotalPnL}}</strong></td>
+            <td class="text-right {{if .IsPositive}}positive{{else}}negative{{end}}"><strong>{{.TotalPnLPct}}</strong></td>
+        </tr>
+    </tfoot>
+</table>
+{{end}}

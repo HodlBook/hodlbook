@@ -1,0 +1,41 @@
+{{if .Empty}}
+<div class="empty-state">
+    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M3 3v18h18"/>
+        <path d="M18 17V9"/>
+        <path d="M13 17V5"/>
+        <path d="M8 17v-3"/>
+    </svg>
+    <h3>No Assets</h3>
+    <p>Add assets to see live prices.</p>
+    <a href="/assets" class="btn btn-primary">Manage Assets</a>
+</div>
+{{else}}
+<div class="prices-cards">
+    {{range .Prices}}
+    <div class="price-card">
+        <div class="price-card-header">
+            <div class="asset-info">
+                <span class="asset-symbol-lg">{{.Symbol}}</span>
+                <span class="asset-name">{{.Name}}</span>
+            </div>
+        </div>
+        <div class="price-card-body">
+            <div class="price-value" data-price-symbol="{{.Symbol}}" data-price-value="{{.PriceRaw}}">
+                {{.Price}}
+            </div>
+        </div>
+        <div class="price-card-footer">
+            <div class="holdings-info">
+                <span class="label">Holdings</span>
+                <span class="value">{{.Holdings}} {{.Symbol}}</span>
+            </div>
+            <div class="value-info">
+                <span class="label">Value</span>
+                <span class="value">{{.Value}}</span>
+            </div>
+        </div>
+    </div>
+    {{end}}
+</div>
+{{end}}

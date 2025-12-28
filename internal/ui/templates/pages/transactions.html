@@ -1,0 +1,209 @@
+{{define "content"}}
+<div class="transactions-page">
+    <section class="page-header">
+        <div class="page-header-content">
+            <h2>Transactions</h2>
+            <p class="text-muted">Record and manage your cryptocurrency transactions.</p>
+        </div>
+        <div class="page-header-actions">
+            <button class="btn btn-primary" @click="$dispatch('open-add-transaction')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"/>
+                </svg>
+                Add Transaction
+            </button>
+        </div>
+    </section>
+
+    <section class="transactions-filters">
+        <div class="card">
+            <div class="card-body filters-row">
+                <div class="filter-group">
+                    <label>Asset</label>
+                    <select name="asset_id" class="form-control"
+                        hx-get="/partials/transactions/table"
+                        hx-target="#transactions-table-container"
+                        hx-include=".filters-row select, .filters-row input">
+                        <option value="">All Assets</option>
+                        {{range .Assets}}
+                        <option value="{{.ID}}">{{.Symbol}}</option>
+                        {{end}}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Type</label>
+                    <select name="type" class="form-control"
+                        hx-get="/partials/transactions/table"
+                        hx-target="#transactions-table-container"
+                        hx-include=".filters-row select, .filters-row input">
+                        <option value="">All Types</option>
+                        <option value="buy">Buy</option>
+                        <option value="sell">Sell</option>
+                        <option value="deposit">Deposit</option>
+                        <option value="withdraw">Withdraw</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>From</label>
+                    <input type="date" name="from" class="form-control"
+                        hx-get="/partials/transactions/table"
+                        hx-target="#transactions-table-container"
+                        hx-trigger="change"
+                        hx-include=".filters-row select, .filters-row input">
+                </div>
+                <div class="filter-group">
+                    <label>To</label>
+                    <input type="date" name="to" class="form-control"
+                        hx-get="/partials/transactions/table"
+                        hx-target="#transactions-table-container"
+                        hx-trigger="change"
+                        hx-include=".filters-row select, .filters-row input">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="transactions-list">
+        <div class="card">
+            <div class="card-body">
+                <div id="transactions-table-container" hx-get="/partials/transactions/table" hx-trigger="load" hx-swap="innerHTML">
+                    <div class="skeleton-table">
+                        <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                        <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                        <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div x-data="transactionModal()" @open-add-transaction.window="openAdd()" @open-edit-transaction.window="openEdit($event.detail)" @close-modal.window="open = false">
+        <div x-show="open" x-cloak class="modal-overlay" @click.self="open = false" @keydown.escape.window="open = false">
+            <div class="modal" x-transition>
+                <div class="modal-header">
+                    <h2 class="modal-title" x-text="isEdit ? 'Edit Transaction' : 'Add Transaction'"></h2>
+                    <button @click="open = false" class="modal-close">&times;</button>
+                </div>
+                <form :hx-post="isEdit ? '/partials/transactions/update/' + transactionId : '/partials/transactions/create'"
+                      hx-target="#transactions-table-container"
+                      hx-swap="innerHTML"
+                      @htmx:after-request="if(event.detail.successful) { open = false; $dispatch('show-toast', {message: isEdit ? 'Transaction updated' : 'Transaction added', type: 'success'}) }">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="tx-type">Type <span class="required">*</span></label>
+                            <select id="tx-type" name="type" class="form-control" required x-model="type">
+                                <option value="">Select type...</option>
+                                <option value="buy">Buy</option>
+                                <option value="sell">Sell</option>
+                                <option value="deposit">Deposit</option>
+                                <option value="withdraw">Withdraw</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="tx-asset">Asset <span class="required">*</span></label>
+                            <select id="tx-asset" name="asset_id" class="form-control" required x-model="assetId">
+                                <option value="">Select asset...</option>
+                                {{range .Assets}}
+                                <option value="{{.ID}}">{{.Symbol}} - {{.Name}}</option>
+                                {{end}}
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="tx-amount">Amount <span class="required">*</span></label>
+                            <input type="number" id="tx-amount" name="amount" class="form-control"
+                                step="any" min="0" required x-model="amount" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label for="tx-timestamp">Date <span class="required">*</span></label>
+                            <input type="datetime-local" id="tx-timestamp" name="timestamp" class="form-control" required x-model="timestamp">
+                        </div>
+                        <div class="form-group">
+                            <label for="tx-notes">Notes</label>
+                            <textarea id="tx-notes" name="notes" class="form-control" rows="2" x-model="notes" placeholder="Optional notes..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" @click="open = false" class="btn btn-secondary">Cancel</button>
+                        <button type="submit" class="btn btn-primary" x-text="isEdit ? 'Update' : 'Add'"></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div x-data="deleteTransactionModal()" @open-delete-transaction.window="openDelete($event.detail)" @keydown.escape.window="open = false">
+        <div x-show="open" x-cloak class="modal-overlay" @click.self="open = false">
+            <div class="modal modal-sm" x-transition>
+                <div class="modal-header">
+                    <h2 class="modal-title">Delete Transaction</h2>
+                    <button @click="open = false" class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this transaction?</p>
+                </div>
+                <div class="modal-footer">
+                    <button @click="open = false" class="btn btn-secondary">Cancel</button>
+                    <button @click="confirmDelete()" class="btn btn-danger">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function transactionModal() {
+    return {
+        open: false,
+        isEdit: false,
+        transactionId: null,
+        type: '',
+        assetId: '',
+        amount: '',
+        timestamp: '',
+        notes: '',
+        openAdd() {
+            this.isEdit = false;
+            this.transactionId = null;
+            this.type = '';
+            this.assetId = '';
+            this.amount = '';
+            this.timestamp = new Date().toISOString().slice(0, 16);
+            this.notes = '';
+            this.open = true;
+        },
+        openEdit(detail) {
+            this.isEdit = true;
+            this.transactionId = detail.id;
+            this.type = detail.type;
+            this.assetId = detail.asset_id;
+            this.amount = detail.amount;
+            this.timestamp = detail.timestamp;
+            this.notes = detail.notes || '';
+            this.open = true;
+        }
+    }
+}
+
+function deleteTransactionModal() {
+    return {
+        open: false,
+        transactionId: null,
+        openDelete(detail) {
+            this.transactionId = detail.id;
+            this.open = true;
+        },
+        confirmDelete() {
+            htmx.ajax('DELETE', '/partials/transactions/delete/' + this.transactionId, {
+                target: '#transactions-table-container',
+                swap: 'innerHTML'
+            }).then(() => {
+                this.open = false;
+                window.dispatchEvent(new CustomEvent('show-toast', {
+                    detail: { message: 'Transaction deleted', type: 'success' }
+                }));
+            });
+        }
+    }
+}
+</script>
+{{end}}

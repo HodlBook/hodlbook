@@ -1,0 +1,125 @@
+{{define "content"}}
+<div class="assets-page">
+    <section class="page-header">
+        <div class="page-header-content">
+            <h2>Manage Assets</h2>
+            <p class="text-muted">Add and manage cryptocurrency assets to track in your portfolio.</p>
+        </div>
+        <div class="page-header-actions">
+            <button class="btn btn-primary" @click="$dispatch('open-add-asset')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"/>
+                </svg>
+                Add Asset
+            </button>
+        </div>
+    </section>
+
+    <section class="assets-list">
+        <div class="card">
+            <div class="card-body">
+                <div id="assets-table-container" hx-get="/partials/assets/table" hx-trigger="load" hx-swap="innerHTML">
+                    <div class="skeleton-table">
+                        <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                        <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                        <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div x-data="addAssetModal()" @open-add-asset.window="open = true" @close-modal.window="open = false">
+        <div x-show="open" x-cloak class="modal-overlay" @click.self="open = false" @keydown.escape.window="open = false">
+            <div class="modal" x-transition>
+                <div class="modal-header">
+                    <h2 class="modal-title">Add Asset</h2>
+                    <button @click="open = false" class="modal-close">&times;</button>
+                </div>
+                <form hx-post="/partials/assets/create"
+                      hx-target="#assets-table-container"
+                      hx-swap="innerHTML"
+                      @htmx:after-request="if(event.detail.successful) { open = false; $dispatch('show-toast', {message: 'Asset added successfully', type: 'success'}); resetForm() }">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="symbol">Symbol <span class="required">*</span></label>
+                            <input type="text" id="symbol" name="symbol" class="form-control"
+                                placeholder="e.g., BTC, ETH, SOL" required
+                                x-model="symbol"
+                                @input="symbol = symbol.toUpperCase()">
+                            <span class="form-help">The trading symbol (will be converted to uppercase)</span>
+                        </div>
+                        <div class="form-group">
+                            <label for="name">Name <span class="required">*</span></label>
+                            <input type="text" id="name" name="name" class="form-control"
+                                placeholder="e.g., Bitcoin, Ethereum" required
+                                x-model="name">
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" @click="open = false" class="btn btn-secondary">Cancel</button>
+                        <button type="submit" class="btn btn-primary">Add Asset</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div x-data="deleteAssetModal()" @open-delete-asset.window="openDelete($event.detail)" @keydown.escape.window="open = false">
+        <div x-show="open" x-cloak class="modal-overlay" @click.self="open = false">
+            <div class="modal modal-sm" x-transition>
+                <div class="modal-header">
+                    <h2 class="modal-title">Delete Asset</h2>
+                    <button @click="open = false" class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete <strong x-text="symbol"></strong>?</p>
+                    <p class="text-muted">This will not delete associated transactions.</p>
+                </div>
+                <div class="modal-footer">
+                    <button @click="open = false" class="btn btn-secondary">Cancel</button>
+                    <button @click="confirmDelete()" class="btn btn-danger">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function addAssetModal() {
+    return {
+        open: false,
+        symbol: '',
+        name: '',
+        resetForm() {
+            this.symbol = '';
+            this.name = '';
+        }
+    }
+}
+
+function deleteAssetModal() {
+    return {
+        open: false,
+        assetId: null,
+        symbol: '',
+        openDelete(detail) {
+            this.assetId = detail.id;
+            this.symbol = detail.symbol;
+            this.open = true;
+        },
+        confirmDelete() {
+            htmx.ajax('DELETE', '/partials/assets/delete/' + this.assetId, {
+                target: '#assets-table-container',
+                swap: 'innerHTML'
+            }).then(() => {
+                this.open = false;
+                window.dispatchEvent(new CustomEvent('show-toast', {
+                    detail: { message: 'Asset deleted successfully', type: 'success' }
+                }));
+            });
+        }
+    }
+}
+</script>
+{{end}}

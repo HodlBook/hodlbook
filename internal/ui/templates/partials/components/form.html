@@ -1,0 +1,87 @@
+{{define "form-input"}}
+<div class="form-group">
+    <label for="{{.ID}}">{{.Label}}{{if .Required}}<span class="required">*</span>{{end}}</label>
+    <input
+        type="{{.Type}}"
+        id="{{.ID}}"
+        name="{{.Name}}"
+        value="{{.Value}}"
+        placeholder="{{.Placeholder}}"
+        {{if .Required}}required{{end}}
+        {{if .Min}}min="{{.Min}}"{{end}}
+        {{if .Max}}max="{{.Max}}"{{end}}
+        {{if .Step}}step="{{.Step}}"{{end}}
+        class="form-control {{if .Error}}is-invalid{{end}}">
+    {{if .Error}}
+    <span class="form-error">{{.Error}}</span>
+    {{end}}
+    {{if .Help}}
+    <span class="form-help">{{.Help}}</span>
+    {{end}}
+</div>
+{{end}}
+
+{{define "form-select"}}
+<div class="form-group">
+    <label for="{{.ID}}">{{.Label}}{{if .Required}}<span class="required">*</span>{{end}}</label>
+    <select
+        id="{{.ID}}"
+        name="{{.Name}}"
+        {{if .Required}}required{{end}}
+        class="form-control {{if .Error}}is-invalid{{end}}">
+        {{if .Placeholder}}
+        <option value="">{{.Placeholder}}</option>
+        {{end}}
+        {{range .Options}}
+        <option value="{{.Value}}" {{if .Selected}}selected{{end}}>{{.Label}}</option>
+        {{end}}
+    </select>
+    {{if .Error}}
+    <span class="form-error">{{.Error}}</span>
+    {{end}}
+</div>
+{{end}}
+
+{{define "form-textarea"}}
+<div class="form-group">
+    <label for="{{.ID}}">{{.Label}}{{if .Required}}<span class="required">*</span>{{end}}</label>
+    <textarea
+        id="{{.ID}}"
+        name="{{.Name}}"
+        placeholder="{{.Placeholder}}"
+        {{if .Required}}required{{end}}
+        {{if .Rows}}rows="{{.Rows}}"{{end}}
+        class="form-control {{if .Error}}is-invalid{{end}}">{{.Value}}</textarea>
+    {{if .Error}}
+    <span class="form-error">{{.Error}}</span>
+    {{end}}
+</div>
+{{end}}
+
+{{define "form-checkbox"}}
+<div class="form-group form-check">
+    <input
+        type="checkbox"
+        id="{{.ID}}"
+        name="{{.Name}}"
+        {{if .Checked}}checked{{end}}
+        class="form-check-input">
+    <label for="{{.ID}}" class="form-check-label">{{.Label}}</label>
+</div>
+{{end}}
+
+{{define "form-date"}}
+<div class="form-group">
+    <label for="{{.ID}}">{{.Label}}{{if .Required}}<span class="required">*</span>{{end}}</label>
+    <input
+        type="datetime-local"
+        id="{{.ID}}"
+        name="{{.Name}}"
+        value="{{.Value}}"
+        {{if .Required}}required{{end}}
+        class="form-control {{if .Error}}is-invalid{{end}}">
+    {{if .Error}}
+    <span class="form-error">{{.Error}}</span>
+    {{end}}
+</div>
+{{end}}

@@ -1,0 +1,94 @@
+{{if .Empty}}
+<div class="empty-state">
+    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/>
+    </svg>
+    <h3>No exchanges found</h3>
+    <p>Record your first asset exchange to see it here.</p>
+</div>
+{{else}}
+<div class="table-responsive">
+    <table class="table">
+        <thead>
+            <tr>
+                <th>Date</th>
+                <th>From</th>
+                <th>To</th>
+                <th>Rate</th>
+                <th>Fee</th>
+                <th>Notes</th>
+                <th class="text-right">Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {{range .Exchanges}}
+            <tr>
+                <td>{{.Timestamp}}</td>
+                <td>
+                    <span class="badge badge-danger">{{.FromAmount}} {{.FromSymbol}}</span>
+                </td>
+                <td>
+                    <span class="badge badge-success">{{.ToAmount}} {{.ToSymbol}}</span>
+                </td>
+                <td>1 {{.FromSymbol}} = {{.Rate}} {{.ToSymbol}}</td>
+                <td>
+                    {{if .FeeRaw}}
+                    {{.Fee}} {{.FeeCurrency}}
+                    {{else}}
+                    -
+                    {{end}}
+                </td>
+                <td class="notes-cell">{{if .Notes}}{{.Notes}}{{else}}-{{end}}</td>
+                <td class="text-right">
+                    <div class="btn-group">
+                        <button class="btn btn-sm btn-ghost"
+                            @click="$dispatch('open-edit-exchange', {
+                                id: {{.ID}},
+                                from_asset_id: '{{.FromAssetID}}',
+                                from_amount: '{{.FromAmountRaw}}',
+                                to_asset_id: '{{.ToAssetID}}',
+                                to_amount: '{{.ToAmountRaw}}',
+                                fee: '{{.FeeRaw}}',
+                                fee_currency: '{{.FeeCurrency}}',
+                                timestamp: '{{.TimestampRaw}}',
+                                notes: '{{.Notes}}'
+                            })">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                            </svg>
+                        </button>
+                        <button class="btn btn-sm btn-ghost btn-danger"
+                            @click="$dispatch('open-delete-exchange', {id: {{.ID}}})">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                            </svg>
+                        </button>
+                    </div>
+                </td>
+            </tr>
+            {{end}}
+        </tbody>
+    </table>
+</div>
+
+{{if gt .TotalPages 1}}
+<div class="pagination">
+    <button class="btn btn-sm btn-secondary"
+        {{if not .HasPrev}}disabled{{end}}
+        hx-get="/partials/exchanges/table?page={{if .HasPrev}}{{sub .Page 1}}{{else}}1{{end}}"
+        hx-target="#exchanges-table-container"
+        hx-include=".filters-row select, .filters-row input">
+        Previous
+    </button>
+    <span class="pagination-info">Page {{.Page}} of {{.TotalPages}}</span>
+    <button class="btn btn-sm btn-secondary"
+        {{if not .HasNext}}disabled{{end}}
+        hx-get="/partials/exchanges/table?page={{if .HasNext}}{{add .Page 1}}{{else}}{{.TotalPages}}{{end}}"
+        hx-target="#exchanges-table-container"
+        hx-include=".filters-row select, .filters-row input">
+        Next
+    </button>
+</div>
+{{end}}
+{{end}}

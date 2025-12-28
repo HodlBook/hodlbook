@@ -25,3 +25,11 @@ func (r *Repository) GetAllAssets() ([]models.Asset, error) {
 func (r *Repository) DeleteAsset(id int64) error {
 	return r.db.Delete(&models.Asset{}, id).Error
 }
+
+func (r *Repository) GetAssetBySymbol(symbol string) (*models.Asset, error) {
+	var asset models.Asset
+	if err := r.db.Where("symbol = ?", symbol).First(&asset).Error; err != nil {
+		return nil, err
+	}
+	return &asset, nil
+}

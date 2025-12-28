@@ -125,8 +125,8 @@ func NewLivePriceService(opts ...LivePriceOption) (*LivePriceService, error) {
 }
 
 func (s *LivePriceService) Start() error {
-	if err := s.syncFromDB(); err != nil {
-		s.logger.Error("initial DB sync failed", "error", err)
+	if err := s.tick(); err != nil {
+		s.logger.Error("initial tick failed", "error", err)
 	}
 
 	return s.scheduler.Start()

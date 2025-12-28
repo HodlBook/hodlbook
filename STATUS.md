@@ -1,9 +1,8 @@
 # HodlBook - Development Status
 
 Self-hosted crypto portfolio management application.
-First phase focuses on backend API development.
 
-**Stack:** Go/Gin backend, htmx frontend (pending), SQLite database
+**Stack:** Go/Gin backend, HTMX + Alpine.js frontend, SQLite database
 
 ## Completed
 
@@ -81,23 +80,99 @@ First phase focuses on backend API development.
 - [x] `GET /api/portfolio/performance` - Profit/loss calculations per asset
 - [x] `GET /api/portfolio/history` - Portfolio value over time (configurable days)
 
+## Frontend (HTMX + Alpine.js)
+
+### Architecture
+- [x] Server-side rendering with Go templates
+- [x] HTMX for dynamic HTML fragment updates
+- [x] Alpine.js for client-side interactivity
+- [x] Chart.js for data visualization
+- [x] Custom CSS dark theme
+
+### UI Components
+- [x] Sidebar navigation (collapsible)
+- [x] Navbar with live connection indicator
+- [x] Summary cards
+- [x] Data tables (sortable, filterable, paginated)
+- [x] Modal/Dialog system
+- [x] Form inputs (text, select, date, number)
+- [x] Toast notifications
+- [x] Loading states (skeletons, spinners)
+- [x] Empty states
+- [x] Charts (pie/donut, line)
+
+### Views
+
+| View | Status | Features |
+|------|--------|----------|
+| Dashboard | Done | Summary cards, allocation chart, holdings table, recent transactions |
+| Portfolio | Done | Full holdings table, performance metrics, historical chart, filters |
+| Assets | Done | Asset list with prices/holdings/value, add modal, delete modal |
+| Transactions | Done | Transaction table, filters (asset, type, date), pagination, add/edit/delete modals |
+| Exchanges | Done | Exchange table, filters (from/to asset, date), pagination, add/edit/delete modals |
+| Prices | Done | Live price cards with SSE updates, holdings/value display, connection status |
+
+### Dashboard Features (Completed)
+- [x] Portfolio summary (total value, asset count, P/L, best performer)
+- [x] Portfolio value line chart (7d/30d/90d/1y toggle)
+- [x] Asset allocation donut chart with legend
+- [x] Top 5 holdings table
+- [x] Last 5 transactions list
+- [x] Auto-refresh via HTMX (60s interval)
+- [x] Live connection status indicator
+
+### Portfolio Features (Completed)
+- [x] Summary cards (total invested, current value, unrealized P/L)
+- [x] Portfolio history chart (7d/30d/90d/1y toggle)
+- [x] Holdings table with sorting (by value, amount, change, allocation, symbol)
+- [x] Performance table (cost basis, P/L per asset)
+- [x] Auto-refresh via HTMX (60s interval)
+
+### Assets Features (Completed)
+- [x] Asset list table with current price, holdings, value
+- [x] Add asset modal (symbol, name)
+- [x] Delete asset confirmation modal
+- [x] Auto-uppercase symbol input
+- [x] Sorted by portfolio value
+
+### Transactions Features (Completed)
+- [x] Transaction table with date, type, asset, amount, notes
+- [x] Type badges (buy/sell/deposit/withdraw)
+- [x] Filters (asset dropdown, type dropdown, date range)
+- [x] Pagination (20 per page)
+- [x] Add transaction modal
+- [x] Edit transaction modal
+- [x] Delete transaction confirmation modal
+
+### Exchanges Features (Completed)
+- [x] Exchange table with date, from/to amounts, rate, fee, notes
+- [x] From/To asset badges
+- [x] Filters (from asset, to asset, date range)
+- [x] Pagination (20 per page)
+- [x] Add exchange modal (from/to asset/amount, fee, timestamp, notes)
+- [x] Edit exchange modal
+- [x] Delete exchange confirmation modal
+
+### Prices Features (Completed)
+- [x] Price cards grid layout
+- [x] Real-time SSE price updates with visual feedback (green/red flash)
+- [x] Connection status indicator
+- [x] Holdings and value display per asset
+- [x] Auto-reconnect on disconnect
+
+### Startup Improvements
+- [x] Immediate price fetch on service startup (no wait for first tick)
+
 ## Pending
 
 ### Infrastructure
-- [ ] `GET /api/health` endpoint
+- [x] `GET /api/health` endpoint (used by navbar live indicator)
+- [x] Favicon (icon.png)
 - [ ] Hot-reload for development (Air)
 
-### Frontend (htmx)
-- [ ] Layout component
-- [ ] Asset management pages
-- [ ] Transaction forms
-- [ ] Exchange forms
-- [ ] Dashboard with charts
-- [ ] Settings page
-- [ ] Live price updates via pubsub/websocket
-
 ### Documentation
-- [ ] Local setup instructions in README
+- [x] README with tech stack and structure
+- [ ] Local setup instructions
 
 ## Out of Scope
 - Automatic exchange API integrations

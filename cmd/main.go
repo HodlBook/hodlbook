@@ -12,6 +12,7 @@ import (
 	"hodlbook/internal/handler"
 	"hodlbook/internal/repo"
 	"hodlbook/internal/service"
+	uihandler "hodlbook/internal/ui/handler"
 	"hodlbook/pkg/database"
 	"hodlbook/pkg/integrations/memcache"
 	"hodlbook/pkg/integrations/prices"
@@ -123,9 +124,20 @@ func main() {
 	}
 
 	r := gin.Default()
-	r.Static("/static", "./static")
 
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+
+	webHandler, err := uihandler.New(
+		uihandler.WithEngine(r),
+		uihandler.WithRepository(repository),
+		uihandler.WithPriceCache(priceCache),
+	)
+	if err != nil {
+		log.Fatal("Failed to create web handler:", err)
+	}
+	if err := webHandler.Setup(); err != nil {
+		log.Fatal("Failed to setup web routes:", err)
+	}
 
 	h, err := handler.New(
 		handler.WithEngine(r),

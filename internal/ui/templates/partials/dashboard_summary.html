@@ -1,0 +1,54 @@
+<div class="summary-grid">
+    <div class="summary-card">
+        <div class="summary-header">
+            <span class="summary-label">Total Value</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/>
+                <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/>
+                <path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z"/>
+            </svg>
+        </div>
+        <div class="summary-value">{{.TotalValue}}</div>
+    </div>
+
+    <div class="summary-card">
+        <div class="summary-header">
+            <span class="summary-label">Assets</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 6v12M6 12h12"/>
+            </svg>
+        </div>
+        <div class="summary-value">{{.AssetCount}}</div>
+    </div>
+
+    <div class="summary-card {{if .IsPositive}}positive{{else}}negative{{end}}">
+        <div class="summary-header">
+            <span class="summary-label">Total P/L</span>
+            {{if .IsPositive}}
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M18 15l-6-6-6 6"/>
+            </svg>
+            {{else}}
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M6 9l6 6 6-6"/>
+            </svg>
+            {{end}}
+        </div>
+        <div class="summary-value">{{.TotalPnL}}</div>
+        <div class="summary-subvalue">{{.PnLPercent}}</div>
+    </div>
+
+    <div class="summary-card">
+        <div class="summary-header">
+            <span class="summary-label">Best Performer</span>
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+            </svg>
+        </div>
+        <div class="summary-value">{{if .BestPerformer}}{{.BestPerformer}}{{else}}-{{end}}</div>
+        {{if .BestPerformer}}
+        <div class="summary-subvalue positive">{{.BestPnL}}</div>
+        {{end}}
+    </div>
+</div>
