@@ -20,11 +20,16 @@ import (
 var discardLogger = slog.New(slog.NewTextHandler(io.Discard, nil))
 
 type mockAssetRepo struct {
-	assets []models.Asset
+	assets          []models.Asset
+	exchangeSymbols []string
 }
 
 func (m *mockAssetRepo) GetAllAssets() ([]models.Asset, error) {
 	return m.assets, nil
+}
+
+func (m *mockAssetRepo) GetUniqueExchangeSymbols() ([]string, error) {
+	return m.exchangeSymbols, nil
 }
 
 func TestLivePriceService_InvalidConfig(t *testing.T) {

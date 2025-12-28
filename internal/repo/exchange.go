@@ -82,6 +82,31 @@ func (r *Repository) DeleteExchange(id int64) error {
 	return r.db.Delete(&models.Exchange{}, id).Error
 }
 
+func (r *Repository) GetUniqueExchangeSymbols() ([]string, error) {
+	var fromSymbols, toSymbols []string
+
+	if err := r.db.Model(&models.Exchange{}).Distinct("from_symbol").Pluck("from_symbol", &fromSymbols).Error; err != nil {
+		return nil, err
+	}
+	if err := r.db.Model(&models.Exchange{}).Distinct("to_symbol").Pluck("to_symbol", &toSymbols).Error; err != nil {
+		return nil, err
+	}
+
+	symbolSet := make(map[string]bool)
+	for _, s := range fromSymbols {
+		symbolSet[s] = true
+	}
+	for _, s := range toSymbols {
+		symbolSet[s] = true
+	}
+
+	symbols := make([]string, 0, len(symbolSet))
+	for s := range symbolSet {
+		symbols = append(symbols, s)
+	}
+	return symbols, nil
+}
+
 func (r *Repository) ListExchanges(filter ExchangeFilter) (*ExchangeListResult, error) {
 	query := r.db.Model(&models.Exchange{})
 

@@ -96,7 +96,7 @@ func (h *WebHandler) Setup() error {
 	dashboard := NewDashboardHandler(h.renderer, h.repo, h.priceCache)
 	portfolio := NewPortfolioHandler(h.renderer, h.repo, h.priceCache)
 	assets := NewAssetsPageHandler(h.renderer, h.repo, h.priceCache, h.priceFetcher)
-	exchanges := NewExchangesHandler(h.renderer, h.repo, h.priceCache)
+	exchanges := NewExchangesHandler(h.renderer, h.repo, h.priceCache, h.priceFetcher)
 	pricesHandler := NewPricesHandler(h.renderer, h.repo, h.priceCache)
 
 	h.engine.GET("/", dashboard.Index)
@@ -125,6 +125,7 @@ func (h *WebHandler) Setup() error {
 	h.engine.POST("/partials/exchanges/create", exchanges.Create)
 	h.engine.POST("/partials/exchanges/update/:id", exchanges.Update)
 	h.engine.DELETE("/partials/exchanges/delete/:id", exchanges.Delete)
+	h.engine.POST("/partials/exchanges/refresh-prices", exchanges.RefreshPrices)
 	h.engine.GET("/api/ui/holdings", exchanges.GetHoldings)
 
 	h.engine.GET("/prices", pricesHandler.Index)

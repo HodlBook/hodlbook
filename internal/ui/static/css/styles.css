@@ -1044,6 +1044,120 @@ body {
     color: var(--text-secondary);
 }
 
+/* Exchange Rate Display */
+.rate-value {
+    font-weight: 500;
+    color: var(--text-primary);
+}
+
+.rate-pair {
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: 4px;
+}
+
+/* P/L Display */
+.pnl-value {
+    display: block;
+    font-weight: 500;
+}
+
+.pnl-percent {
+    display: block;
+    font-size: 11px;
+}
+
+/* Exchanges Summary */
+.exchanges-summary {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 16px;
+}
+
+.total-pnl {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background-color: var(--bg-tertiary);
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+}
+
+.total-pnl.positive {
+    border-color: rgba(63, 185, 80, 0.3);
+}
+
+.total-pnl.negative {
+    border-color: rgba(248, 81, 73, 0.3);
+}
+
+.total-pnl-label {
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.total-pnl-value {
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.total-pnl.positive .total-pnl-value,
+.total-pnl.positive .total-pnl-percent {
+    color: var(--positive);
+}
+
+.total-pnl.negative .total-pnl-value,
+.total-pnl.negative .total-pnl-percent {
+    color: var(--negative);
+}
+
+.total-pnl-percent {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* Notes Icon */
+.notes-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent-primary);
+    cursor: help;
+    padding: 6px;
+    position: relative;
+}
+
+.notes-icon:hover {
+    color: #e8850f;
+}
+
+.notes-icon::after {
+    content: attr(title);
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 6px;
+    padding: 8px 12px;
+    font-size: 12px;
+    color: var(--text-primary);
+    white-space: pre-wrap;
+    max-width: 250px;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity var(--transition), visibility var(--transition);
+    pointer-events: none;
+}
+
+.notes-icon:hover::after {
+    opacity: 1;
+    visibility: visible;
+}
+
 /* Button Group */
 .btn-group {
     display: flex;

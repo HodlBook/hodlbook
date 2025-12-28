@@ -7,6 +7,13 @@
     <p>Record your first asset exchange to see it here.</p>
 </div>
 {{else}}
+<div class="exchanges-summary">
+    <div class="total-pnl {{if .TotalPnLPositive}}positive{{else}}negative{{end}}">
+        <span class="total-pnl-label">Total P/L:</span>
+        <span class="total-pnl-value">{{.TotalPnLUSD}}</span>
+        <span class="total-pnl-percent">{{.TotalPnLPercent}}</span>
+    </div>
+</div>
 <div class="table-responsive">
     <table class="table">
         <thead>
@@ -15,8 +22,9 @@
                 <th>From</th>
                 <th>To</th>
                 <th>Rate</th>
+                <th>Market Rate</th>
+                <th>P/L</th>
                 <th>Fee</th>
-                <th>Notes</th>
                 <th class="text-right">Actions</th>
             </tr>
         </thead>
@@ -30,7 +38,24 @@
                 <td>
                     <span class="badge badge-success">{{.ToAmount}} {{.ToSymbol}}</span>
                 </td>
-                <td>{{.Rate}}</td>
+                <td>
+                    {{if .Rate}}
+                    <span class="rate-value">{{.Rate}}</span>
+                    <span class="rate-pair">{{.RatePair}}</span>
+                    {{else}}-{{end}}
+                </td>
+                <td>
+                    {{if .MarketRate}}
+                    <span class="rate-value">{{.MarketRate}}</span>
+                    <span class="rate-pair">{{.MarketRatePair}}</span>
+                    {{else}}-{{end}}
+                </td>
+                <td>
+                    {{if .PnLUSD}}
+                    <span class="pnl-value {{if .PnLPositive}}positive{{else}}negative{{end}}">{{.PnLUSD}}</span>
+                    <span class="pnl-percent {{if .PnLPositive}}positive{{else}}negative{{end}}">{{.PnLPercent}}</span>
+                    {{else}}-{{end}}
+                </td>
                 <td>
                     {{if .FeeRaw}}
                     {{.Fee}} {{.FeeCurrency}}
@@ -38,9 +63,16 @@
                     -
                     {{end}}
                 </td>
-                <td class="notes-cell">{{if .Notes}}{{.Notes}}{{else}}-{{end}}</td>
                 <td class="text-right">
                     <div class="btn-group">
+                        {{if .Notes}}
+                        <span class="notes-icon" title="{{.Notes}}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>
+                                <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>
+                            </svg>
+                        </span>
+                        {{end}}
                         <button class="btn btn-sm btn-ghost"
                             @click="$dispatch('open-edit-exchange', {
                                 id: {{.ID}},

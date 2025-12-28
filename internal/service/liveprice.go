@@ -20,6 +20,7 @@ var ErrInvalidLivePriceConfig = errors.New("invalid live price service config")
 
 type AssetRepository interface {
 	GetAllAssets() ([]models.Asset, error)
+	GetUniqueExchangeSymbols() ([]string, error)
 }
 
 type LivePriceService struct {
@@ -152,11 +153,22 @@ func (s *LivePriceService) syncFromDB() error {
 		return errors.Wrap(err, "failed to get assets from DB")
 	}
 
+	exchangeSymbols, err := s.repo.GetUniqueExchangeSymbols()
+	if err != nil {
+		return errors.Wrap(err, "failed to get exchange symbols from DB")
+	}
+
 	dbSymbols := make(map[string]bool)
 	for _, asset := range assets {
 		dbSymbols[asset.Symbol] = true
 		if _, exists := s.cache.Get(asset.Symbol); !exists {
 			s.cache.Set(asset.Symbol, 0)
+		}
+	}
+	for _, symbol := range exchangeSymbols {
+		dbSymbols[symbol] = true
+		if _, exists := s.cache.Get(symbol); !exists {
+			s.cache.Set(symbol, 0)
 		}
 	}
 
@@ -167,7 +179,7 @@ func (s *LivePriceService) syncFromDB() error {
 	}
 
 	s.lastSync = time.Now()
-	s.logger.Info("synced assets from DB", "count", len(assets))
+	s.logger.Info("synced symbols from DB", "assets", len(assets), "exchange_symbols", len(exchangeSymbols))
 	return nil
 }
 
