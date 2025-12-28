@@ -10,15 +10,13 @@ import (
 )
 
 type AssetHolding struct {
-	AssetID int64   `json:"asset_id"`
-	Symbol  string  `json:"symbol"`
-	Amount  float64 `json:"amount"`
-	Price   float64 `json:"price"`
-	Value   float64 `json:"value"`
+	Symbol string  `json:"symbol"`
+	Amount float64 `json:"amount"`
+	Price  float64 `json:"price"`
+	Value  float64 `json:"value"`
 }
 
 type AllocationEntry struct {
-	AssetID    int64   `json:"asset_id"`
 	Symbol     string  `json:"symbol"`
 	Amount     float64 `json:"amount"`
 	Value      float64 `json:"value"`
@@ -26,7 +24,6 @@ type AllocationEntry struct {
 }
 
 type PerformanceEntry struct {
-	AssetID    int64   `json:"asset_id"`
 	Symbol     string  `json:"symbol"`
 	CostBasis  float64 `json:"cost_basis"`
 	CurrentVal float64 `json:"current_value"`
@@ -39,47 +36,24 @@ type HistoryPoint struct {
 	Value float64 `json:"value"`
 }
 
-func (c *Controller) calculateHoldings() (map[int64]float64, error) {
-	holdings := make(map[int64]float64)
+func (c *Controller) calculateHoldings() (map[string]float64, error) {
+	holdings := make(map[string]float64)
 
-	transactions, err := c.repo.GetAllTransactions()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, tx := range transactions {
-		switch tx.Type {
-		case "deposit", "buy":
-			holdings[tx.AssetID] += tx.Amount
-		case "withdraw", "sell":
-			holdings[tx.AssetID] -= tx.Amount
-		}
-	}
-
-	exchanges, err := c.repo.GetAllExchanges()
-	if err != nil {
-		return nil, err
-	}
-
-	for _, ex := range exchanges {
-		holdings[ex.FromAssetID] -= ex.FromAmount
-		holdings[ex.ToAssetID] += ex.ToAmount
-	}
-
-	return holdings, nil
-}
-
-func (c *Controller) getAssetSymbols() (map[int64]string, error) {
 	assets, err := c.repo.GetAllAssets()
 	if err != nil {
 		return nil, err
 	}
 
-	symbols := make(map[int64]string)
 	for _, asset := range assets {
-		symbols[asset.ID] = asset.Symbol
+		switch asset.TransactionType {
+		case "deposit":
+			holdings[asset.Symbol] += asset.Amount
+		case "withdraw":
+			holdings[asset.Symbol] -= asset.Amount
+		}
 	}
-	return symbols, nil
+
+	return holdings, nil
 }
 
 // PortfolioSummary godoc
@@ -97,21 +71,14 @@ func (c *Controller) PortfolioSummary(ctx *gin.Context) {
 		return
 	}
 
-	symbols, err := c.getAssetSymbols()
-	if err != nil {
-		internalError(ctx, "failed to get assets")
-		return
-	}
-
 	var totalValue float64
 	assetHoldings := make([]AssetHolding, 0)
 
-	for assetID, amount := range holdings {
+	for symbol, amount := range holdings {
 		if amount <= 0 {
 			continue
 		}
 
-		symbol := symbols[assetID]
 		var price float64
 		if c.priceCache != nil {
 			price, _ = c.priceCache.Get(symbol)
@@ -121,11 +88,10 @@ func (c *Controller) PortfolioSummary(ctx *gin.Context) {
 		totalValue += value
 
 		assetHoldings = append(assetHoldings, AssetHolding{
-			AssetID: assetID,
-			Symbol:  symbol,
-			Amount:  amount,
-			Price:   price,
-			Value:   value,
+			Symbol: symbol,
+			Amount: amount,
+			Price:  price,
+			Value:  value,
 		})
 	}
 
@@ -151,21 +117,14 @@ func (c *Controller) PortfolioAllocation(ctx *gin.Context) {
 		return
 	}
 
-	symbols, err := c.getAssetSymbols()
-	if err != nil {
-		internalError(ctx, "failed to get assets")
-		return
-	}
-
 	var totalValue float64
 	allocations := make([]AllocationEntry, 0)
 
-	for assetID, amount := range holdings {
+	for symbol, amount := range holdings {
 		if amount <= 0 {
 			continue
 		}
 
-		symbol := symbols[assetID]
 		var price float64
 		if c.priceCache != nil {
 			price, _ = c.priceCache.Get(symbol)
@@ -175,10 +134,9 @@ func (c *Controller) PortfolioAllocation(ctx *gin.Context) {
 		totalValue += value
 
 		allocations = append(allocations, AllocationEntry{
-			AssetID: assetID,
-			Symbol:  symbol,
-			Amount:  amount,
-			Value:   value,
+			Symbol: symbol,
+			Amount: amount,
+			Value:  value,
 		})
 	}
 
@@ -213,43 +171,37 @@ func (c *Controller) PortfolioPerformance(ctx *gin.Context) {
 		return
 	}
 
-	symbols, err := c.getAssetSymbols()
-	if err != nil {
-		internalError(ctx, "failed to get assets")
-		return
-	}
-
-	transactions, err := c.repo.GetAllTransactions()
-	if err != nil {
-		internalError(ctx, "failed to get transactions")
-		return
-	}
-
 	assets, err := c.repo.GetAllAssets()
 	if err != nil {
 		internalError(ctx, "failed to get assets")
 		return
 	}
 
-	historicPrices := make(map[int64][]struct {
+	symbols, err := c.repo.GetUniqueSymbols()
+	if err != nil {
+		internalError(ctx, "failed to get symbols")
+		return
+	}
+
+	historicPrices := make(map[string][]struct {
 		date  time.Time
 		price float64
 	})
-	for _, asset := range assets {
-		history, err := c.repo.SelectAllByAsset(asset.ID)
+	for _, symbol := range symbols {
+		history, err := c.repo.SelectAllBySymbol(symbol)
 		if err != nil {
 			continue
 		}
 		for _, h := range history {
-			historicPrices[asset.ID] = append(historicPrices[asset.ID], struct {
+			historicPrices[symbol] = append(historicPrices[symbol], struct {
 				date  time.Time
 				price float64
 			}{h.Timestamp, h.Value})
 		}
 	}
 
-	findPriceAtTime := func(assetID int64, t time.Time) float64 {
-		prices := historicPrices[assetID]
+	findPriceAtTime := func(symbol string, t time.Time) float64 {
+		prices := historicPrices[symbol]
 		if len(prices) == 0 {
 			return 0
 		}
@@ -268,55 +220,30 @@ func (c *Controller) PortfolioPerformance(ctx *gin.Context) {
 		return closest
 	}
 
-	exchanges, err := c.repo.GetAllExchanges()
-	if err != nil {
-		internalError(ctx, "failed to get exchanges")
-		return
-	}
-
 	type costEvent struct {
 		timestamp time.Time
-		apply     func(costBasis, runningHoldings map[int64]float64)
+		apply     func(costBasis, runningHoldings map[string]float64)
 	}
 
-	events := make([]costEvent, 0, len(transactions)+len(exchanges))
+	events := make([]costEvent, 0, len(assets))
 
-	for _, tx := range transactions {
-		tx := tx
+	for _, asset := range assets {
+		asset := asset
 		events = append(events, costEvent{
-			timestamp: tx.Timestamp,
-			apply: func(costBasis, runningHoldings map[int64]float64) {
-				price := findPriceAtTime(tx.AssetID, tx.Timestamp)
-				switch tx.Type {
-				case "deposit", "buy":
-					costBasis[tx.AssetID] += tx.Amount * price
-					runningHoldings[tx.AssetID] += tx.Amount
-				case "withdraw", "sell":
-					if runningHoldings[tx.AssetID] > 0 {
-						avgCost := costBasis[tx.AssetID] / runningHoldings[tx.AssetID]
-						costBasis[tx.AssetID] -= tx.Amount * avgCost
+			timestamp: asset.Timestamp,
+			apply: func(costBasis, runningHoldings map[string]float64) {
+				price := findPriceAtTime(asset.Symbol, asset.Timestamp)
+				switch asset.TransactionType {
+				case "deposit":
+					costBasis[asset.Symbol] += asset.Amount * price
+					runningHoldings[asset.Symbol] += asset.Amount
+				case "withdraw":
+					if runningHoldings[asset.Symbol] > 0 {
+						avgCost := costBasis[asset.Symbol] / runningHoldings[asset.Symbol]
+						costBasis[asset.Symbol] -= asset.Amount * avgCost
 					}
-					runningHoldings[tx.AssetID] -= tx.Amount
+					runningHoldings[asset.Symbol] -= asset.Amount
 				}
-			},
-		})
-	}
-
-	for _, ex := range exchanges {
-		ex := ex
-		events = append(events, costEvent{
-			timestamp: ex.Timestamp,
-			apply: func(costBasis, runningHoldings map[int64]float64) {
-				var transferredCost float64
-				if runningHoldings[ex.FromAssetID] > 0 {
-					avgCost := costBasis[ex.FromAssetID] / runningHoldings[ex.FromAssetID]
-					transferredCost = ex.FromAmount * avgCost
-					costBasis[ex.FromAssetID] -= transferredCost
-				}
-				runningHoldings[ex.FromAssetID] -= ex.FromAmount
-
-				costBasis[ex.ToAssetID] += transferredCost
-				runningHoldings[ex.ToAssetID] += ex.ToAmount
 			},
 		})
 	}
@@ -325,8 +252,8 @@ func (c *Controller) PortfolioPerformance(ctx *gin.Context) {
 		return events[i].timestamp.Before(events[j].timestamp)
 	})
 
-	costBasis := make(map[int64]float64)
-	runningHoldings := make(map[int64]float64)
+	costBasis := make(map[string]float64)
+	runningHoldings := make(map[string]float64)
 
 	for _, event := range events {
 		event.apply(costBasis, runningHoldings)
@@ -335,19 +262,18 @@ func (c *Controller) PortfolioPerformance(ctx *gin.Context) {
 	var totalCostBasis, totalCurrentValue, totalProfitLoss float64
 	performance := make([]PerformanceEntry, 0)
 
-	for assetID, amount := range holdings {
+	for symbol, amount := range holdings {
 		if amount <= 0 {
 			continue
 		}
 
-		symbol := symbols[assetID]
 		var price float64
 		if c.priceCache != nil {
 			price, _ = c.priceCache.Get(symbol)
 		}
 
 		currentValue := amount * price
-		cost := costBasis[assetID]
+		cost := costBasis[symbol]
 		profitLoss := currentValue - cost
 
 		var profitPct float64
@@ -360,7 +286,6 @@ func (c *Controller) PortfolioPerformance(ctx *gin.Context) {
 		totalProfitLoss += profitLoss
 
 		performance = append(performance, PerformanceEntry{
-			AssetID:    assetID,
 			Symbol:     symbol,
 			CostBasis:  cost,
 			CurrentVal: currentValue,
@@ -400,9 +325,9 @@ func (c *Controller) PortfolioHistory(ctx *gin.Context) {
 		}
 	}
 
-	assets, err := c.repo.GetAllAssets()
+	symbols, err := c.repo.GetUniqueSymbols()
 	if err != nil {
-		internalError(ctx, "failed to get assets")
+		internalError(ctx, "failed to get symbols")
 		return
 	}
 
@@ -412,9 +337,9 @@ func (c *Controller) PortfolioHistory(ctx *gin.Context) {
 		return
 	}
 
-	historicPrices := make(map[int64]map[string]float64)
-	for _, asset := range assets {
-		history, err := c.repo.SelectAllByAsset(asset.ID)
+	historicPrices := make(map[string]map[string]float64)
+	for _, symbol := range symbols {
+		history, err := c.repo.SelectAllBySymbol(symbol)
 		if err != nil {
 			continue
 		}
@@ -424,7 +349,7 @@ func (c *Controller) PortfolioHistory(ctx *gin.Context) {
 			dateStr := h.Timestamp.Format("2006-01-02")
 			priceByDate[dateStr] = h.Value
 		}
-		historicPrices[asset.ID] = priceByDate
+		historicPrices[symbol] = priceByDate
 	}
 
 	historyPoints := make([]HistoryPoint, 0)
@@ -435,12 +360,12 @@ func (c *Controller) PortfolioHistory(ctx *gin.Context) {
 		dateStr := date.Format("2006-01-02")
 
 		var dailyValue float64
-		for assetID, amount := range holdings {
+		for symbol, amount := range holdings {
 			if amount <= 0 {
 				continue
 			}
 
-			if prices, ok := historicPrices[assetID]; ok {
+			if prices, ok := historicPrices[symbol]; ok {
 				if price, found := prices[dateStr]; found {
 					dailyValue += amount * price
 				}

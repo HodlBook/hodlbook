@@ -44,9 +44,9 @@
                         <button class="btn btn-sm btn-ghost"
                             @click="$dispatch('open-edit-exchange', {
                                 id: {{.ID}},
-                                from_asset_id: '{{.FromAssetID}}',
+                                from_symbol: '{{.FromSymbol}}',
                                 from_amount: '{{.FromAmountRaw}}',
-                                to_asset_id: '{{.ToAssetID}}',
+                                to_symbol: '{{.ToSymbol}}',
                                 to_amount: '{{.ToAmountRaw}}',
                                 fee: '{{.FeeRaw}}',
                                 fee_currency: '{{.FeeCurrency}}',

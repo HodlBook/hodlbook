@@ -17,7 +17,7 @@ import (
 var ErrInvalidAssetHistoricConfig = errors.New("invalid asset historic service config")
 
 type AssetHistoricRepository interface {
-	SelectAllByAsset(assetID int64) ([]models.AssetHistoricValue, error)
+	SelectAllBySymbol(symbol string) ([]models.AssetHistoricValue, error)
 	Insert(value *models.AssetHistoricValue) error
 }
 
@@ -116,14 +116,14 @@ func (s *AssetHistoricService) handleAssetCreated(data []byte) error {
 		return err
 	}
 
-	history, err := s.repo.SelectAllByAsset(asset.ID)
+	history, err := s.repo.SelectAllBySymbol(asset.Symbol)
 	if err != nil {
-		s.logger.Error("failed to check existing history", "asset_id", asset.ID, "error", err)
+		s.logger.Error("failed to check existing history", "symbol", asset.Symbol, "error", err)
 		return err
 	}
 
 	if len(history) > 0 {
-		s.logger.Debug("asset already has historic data", "asset_id", asset.ID, "count", len(history))
+		s.logger.Debug("symbol already has historic data", "symbol", asset.Symbol, "count", len(history))
 		return nil
 	}
 
@@ -140,16 +140,16 @@ func (s *AssetHistoricService) handleAssetCreated(data []byte) error {
 	}
 
 	historicValue := &models.AssetHistoricValue{
-		AssetID:   asset.ID,
+		Symbol:    asset.Symbol,
 		Value:     pricePair.Value,
 		Timestamp: time.Now(),
 	}
 
 	if err := s.repo.Insert(historicValue); err != nil {
-		s.logger.Error("failed to insert initial historic value", "asset_id", asset.ID, "error", err)
+		s.logger.Error("failed to insert initial historic value", "symbol", asset.Symbol, "error", err)
 		return err
 	}
 
-	s.logger.Info("added initial historic price for new asset", "asset_id", asset.ID, "symbol", asset.Symbol, "price", pricePair.Value)
+	s.logger.Info("added initial historic price for new asset", "symbol", asset.Symbol, "price", pricePair.Value)
 	return nil
 }

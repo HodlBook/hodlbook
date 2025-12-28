@@ -17,14 +17,14 @@ import (
 var historicDiscardLogger = slog.New(slog.NewTextHandler(io.Discard, nil))
 
 type mockHistoricRepo struct {
-	assets    []models.Asset
+	symbols   []string
 	values    []models.AssetHistoricValue
 	mu        sync.Mutex
 	insertErr error
 }
 
-func (m *mockHistoricRepo) GetAllAssets() ([]models.Asset, error) {
-	return m.assets, nil
+func (m *mockHistoricRepo) GetUniqueSymbols() ([]string, error) {
+	return m.symbols, nil
 }
 
 func (m *mockHistoricRepo) Insert(value *models.AssetHistoricValue) error {
@@ -88,10 +88,7 @@ func TestHistoricPriceService_Tick(t *testing.T) {
 
 	fetcher := pricesPkg.NewPriceService()
 	repo := &mockHistoricRepo{
-		assets: []models.Asset{
-			{ID: 1, Symbol: "BTC", Name: "Bitcoin"},
-			{ID: 2, Symbol: "ETH", Name: "Ethereum"},
-		},
+		symbols: []string{"BTC", "ETH"},
 	}
 
 	svc, err := NewHistoricPriceService(
@@ -110,10 +107,10 @@ func TestHistoricPriceService_Tick(t *testing.T) {
 
 	var btcValue, ethValue *models.AssetHistoricValue
 	for i := range values {
-		if values[i].AssetID == 1 {
+		if values[i].Symbol == "BTC" {
 			btcValue = &values[i]
 		}
-		if values[i].AssetID == 2 {
+		if values[i].Symbol == "ETH" {
 			ethValue = &values[i]
 		}
 	}
@@ -130,7 +127,7 @@ func TestHistoricPriceService_TickEmptyAssets(t *testing.T) {
 
 	fetcher := pricesPkg.NewPriceService()
 	repo := &mockHistoricRepo{
-		assets: []models.Asset{},
+		symbols: []string{},
 	}
 
 	svc, err := NewHistoricPriceService(

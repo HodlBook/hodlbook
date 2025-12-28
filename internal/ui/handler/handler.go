@@ -7,6 +7,7 @@ import (
 
 	"hodlbook/internal/repo"
 	"hodlbook/pkg/types/cache"
+	"hodlbook/pkg/types/prices"
 
 	"github.com/gin-gonic/gin"
 )
@@ -20,6 +21,7 @@ type WebHandler struct {
 	engine       *gin.Engine
 	repo         *repo.Repository
 	priceCache   cache.Cache[string, float64]
+	priceFetcher prices.PriceFetcher
 	renderer     *Renderer
 	templatesDir string
 }
@@ -41,6 +43,12 @@ func WithRepository(repository *repo.Repository) Option {
 func WithPriceCache(pc cache.Cache[string, float64]) Option {
 	return func(h *WebHandler) {
 		h.priceCache = pc
+	}
+}
+
+func WithPriceFetcher(pf prices.PriceFetcher) Option {
+	return func(h *WebHandler) {
+		h.priceFetcher = pf
 	}
 }
 
@@ -87,10 +95,9 @@ func (h *WebHandler) Setup() error {
 
 	dashboard := NewDashboardHandler(h.renderer, h.repo, h.priceCache)
 	portfolio := NewPortfolioHandler(h.renderer, h.repo, h.priceCache)
-	assets := NewAssetsHandler(h.renderer, h.repo, h.priceCache)
-	transactions := NewTransactionsHandler(h.renderer, h.repo, h.priceCache)
+	assets := NewAssetsPageHandler(h.renderer, h.repo, h.priceCache, h.priceFetcher)
 	exchanges := NewExchangesHandler(h.renderer, h.repo, h.priceCache)
-	prices := NewPricesHandler(h.renderer, h.repo, h.priceCache)
+	pricesHandler := NewPricesHandler(h.renderer, h.repo, h.priceCache)
 
 	h.engine.GET("/", dashboard.Index)
 	h.engine.GET("/partials/dashboard/summary", dashboard.Summary)
@@ -108,13 +115,10 @@ func (h *WebHandler) Setup() error {
 	h.engine.GET("/assets", assets.Index)
 	h.engine.GET("/partials/assets/table", assets.Table)
 	h.engine.POST("/partials/assets/create", assets.Create)
+	h.engine.POST("/partials/assets/update/:id", assets.Update)
 	h.engine.DELETE("/partials/assets/delete/:id", assets.Delete)
-
-	h.engine.GET("/transactions", transactions.Index)
-	h.engine.GET("/partials/transactions/table", transactions.Table)
-	h.engine.POST("/partials/transactions/create", transactions.Create)
-	h.engine.POST("/partials/transactions/update/:id", transactions.Update)
-	h.engine.DELETE("/partials/transactions/delete/:id", transactions.Delete)
+	h.engine.GET("/api/ui/assets", assets.GetAssets)
+	h.engine.GET("/api/ui/cryptos", assets.GetSupportedCryptos)
 
 	h.engine.GET("/exchanges", exchanges.Index)
 	h.engine.GET("/partials/exchanges/table", exchanges.Table)
@@ -122,8 +126,8 @@ func (h *WebHandler) Setup() error {
 	h.engine.POST("/partials/exchanges/update/:id", exchanges.Update)
 	h.engine.DELETE("/partials/exchanges/delete/:id", exchanges.Delete)
 
-	h.engine.GET("/prices", prices.Index)
-	h.engine.GET("/partials/prices/table", prices.Table)
+	h.engine.GET("/prices", pricesHandler.Index)
+	h.engine.GET("/partials/prices/table", pricesHandler.Table)
 
 	h.engine.GET("/api/health", Health)
 

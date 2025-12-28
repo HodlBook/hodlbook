@@ -131,6 +131,7 @@ func main() {
 		uihandler.WithEngine(r),
 		uihandler.WithRepository(repository),
 		uihandler.WithPriceCache(priceCache),
+		uihandler.WithPriceFetcher(priceFetcher),
 	)
 	if err != nil {
 		log.Fatal("Failed to create web handler:", err)

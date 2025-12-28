@@ -2,7 +2,6 @@ package controller
 
 import (
 	"net/http"
-	"strconv"
 	"strings"
 
 	"hodlbook/pkg/integrations/prices"
@@ -61,22 +60,17 @@ func (c *Controller) GetPrice(ctx *gin.Context) {
 
 // GetPriceHistory godoc
 // @Summary Get price history for an asset
-// @Description Get historical prices for a specific asset by ID
+// @Description Get historical prices for a specific asset by symbol
 // @Tags prices
 // @Produce json
-// @Param id path int true "Asset ID"
+// @Param symbol path string true "Asset symbol"
 // @Success 200 {array} models.AssetHistoricValue
-// @Failure 400 {object} map[string]string
 // @Failure 500 {object} map[string]string
-// @Router /api/prices/history/{id} [get]
+// @Router /api/prices/history/{symbol} [get]
 func (c *Controller) GetPriceHistory(ctx *gin.Context) {
-	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
-	if err != nil {
-		badRequest(ctx, "invalid asset id")
-		return
-	}
+	symbol := strings.ToUpper(ctx.Param("symbol"))
 
-	history, err := c.repo.SelectAllByAsset(id)
+	history, err := c.repo.SelectAllBySymbol(symbol)
 	if err != nil {
 		internalError(ctx, "failed to fetch price history")
 		return

@@ -2,6 +2,7 @@
 <div class="exchanges-page">
     <section class="page-header">
         <div class="page-header-content">
+            <h2>Exchanges</h2>
             <p class="text-muted">Record asset-to-asset exchanges and swaps.</p>
         </div>
         <div class="page-header-actions">
@@ -18,26 +19,26 @@
         <div class="card">
             <div class="card-body filters-row">
                 <div class="filter-group">
-                    <label>From Asset</label>
-                    <select name="from_asset_id" class="form-control"
+                    <label>From Symbol</label>
+                    <select name="from_symbol" class="form-control"
                         hx-get="/partials/exchanges/table"
                         hx-target="#exchanges-table-container"
                         hx-include=".filters-row select, .filters-row input">
-                        <option value="">All Assets</option>
-                        {{range .Assets}}
-                        <option value="{{.ID}}">{{.Symbol}}</option>
+                        <option value="">All Symbols</option>
+                        {{range .Symbols}}
+                        <option value="{{.}}">{{.}}</option>
                         {{end}}
                     </select>
                 </div>
                 <div class="filter-group">
-                    <label>To Asset</label>
-                    <select name="to_asset_id" class="form-control"
+                    <label>To Symbol</label>
+                    <select name="to_symbol" class="form-control"
                         hx-get="/partials/exchanges/table"
                         hx-target="#exchanges-table-container"
                         hx-include=".filters-row select, .filters-row input">
-                        <option value="">All Assets</option>
-                        {{range .Assets}}
-                        <option value="{{.ID}}">{{.Symbol}}</option>
+                        <option value="">All Symbols</option>
+                        {{range .Symbols}}
+                        <option value="{{.}}">{{.}}</option>
                         {{end}}
                     </select>
                 </div>
@@ -79,55 +80,52 @@
             <div class="modal modal-lg" x-transition>
                 <div class="modal-header">
                     <h2 class="modal-title" x-text="isEdit ? 'Edit Exchange' : 'Add Exchange'"></h2>
-                    <div class="modal-header-actions">
-                        <button type="submit" form="exchange-form" class="btn btn-primary btn-sm" x-text="isEdit ? 'Update' : 'Add'"></button>
-                        <button type="button" @click="open = false" class="modal-close">&times;</button>
-                    </div>
+                    <button type="button" @click="open = false" class="modal-close">&times;</button>
                 </div>
                 <form id="exchange-form"
                       :hx-post="isEdit ? '/partials/exchanges/update/' + exchangeId : '/partials/exchanges/create'"
                       hx-target="#exchanges-table-container"
                       hx-swap="innerHTML"
-                      @htmx:after-request="if(event.detail.successful) { open = false; $dispatch('show-toast', {message: isEdit ? 'Exchange updated' : 'Exchange added', type: 'success'}) }"
-                      @keydown.enter.prevent="$el.requestSubmit()"
-                      @keydown.escape.prevent="open = false">
+                      @htmx:after-request="if(event.detail.successful) { open = false; $dispatch('show-toast', {message: isEdit ? 'Exchange updated' : 'Exchange added', type: 'success'}) }">
                     <div class="modal-body">
                         <div class="exchange-section">
                             <div class="exchange-section-header">
                                 <span class="badge badge-danger">From</span>
-                                <span class="usd-hint" x-show="fromUsd" x-text="'~$' + formatUsd(fromUsd)"></span>
+                                <span class="usd-hint" x-show="fromUsd > 0" x-text="'~$' + formatUsd(fromUsd)"></span>
                             </div>
-                            <div class="form-group">
-                                <label for="ex-from-asset">Asset <span class="required">*</span></label>
-                                <select id="ex-from-asset" name="from_asset_id" class="form-control" required x-model="fromAssetId" @change="onFromAssetChange()">
-                                    <option value="">Select asset...</option>
-                                    {{range .AssetsWithHolds}}
-                                    <option value="{{.ID}}">{{.Symbol}}</option>
-                                    {{end}}
-                                </select>
-                            </div>
-                            <div class="form-group">
-                                <div class="label-with-hint">
-                                    <label for="ex-from-amount">Amount <span class="required">*</span></label>
-                                    <span class="label-hint" x-show="fromAssetId" x-text="'Available: ' + formatNumber(getHolding(fromAssetId))"></span>
-                                </div>
-                                <div class="input-with-percent">
-                                    <input type="number" id="ex-from-amount" name="from_amount" class="form-control"
-                                        step="any" min="0" required x-model="fromAmount" @input="onFromAmountInput()" placeholder="0.00">
-                                    <div class="percent-buttons-inline" x-show="fromAssetId && getHolding(fromAssetId) > 0">
-                                        <button type="button" class="pct-btn" :class="{ 'active': selectedPercent === 25 }" @click="setFromPercent(25)">25%</button>
-                                        <button type="button" class="pct-btn" :class="{ 'active': selectedPercent === 50 }" @click="setFromPercent(50)">50%</button>
-                                        <button type="button" class="pct-btn" :class="{ 'active': selectedPercent === 75 }" @click="setFromPercent(75)">75%</button>
-                                        <button type="button" class="pct-btn" :class="{ 'active': selectedPercent === 100 }" @click="setFromPercent(100)">100%</button>
+                            <div class="form-group" x-data="cryptoSearchFrom()" x-init="$watch('fromSymbol', v => { search = v; })">
+                                <label>Symbol <span class="required">*</span></label>
+                                <div class="crypto-select" @click.outside="showDropdown = false">
+                                    <input type="text" name="from_symbol" class="form-control" required
+                                        x-model="search" placeholder="Search asset..."
+                                        @input="onInput($event.target.value)"
+                                        @focus="onFocus()"
+                                        @keydown.arrow-down.prevent="highlightNext()"
+                                        @keydown.arrow-up.prevent="highlightPrev()"
+                                        @keydown.enter.prevent="selectHighlighted()"
+                                        @keydown.escape="showDropdown = false"
+                                        autocomplete="off">
+                                    <div class="crypto-dropdown" x-show="showDropdown && filteredAssets.length > 0" x-cloak>
+                                        <template x-for="(asset, index) in filteredAssets" :key="asset.symbol">
+                                            <div class="crypto-option"
+                                                :class="{ 'highlighted': index === highlightedIndex }"
+                                                @click="selectAsset(asset)"
+                                                @mouseenter="highlightedIndex = index">
+                                                <span class="crypto-symbol" x-text="asset.symbol"></span>
+                                                <span class="crypto-name" x-text="$data.formatNumber(asset.amount)"></span>
+                                            </div>
+                                        </template>
                                     </div>
                                 </div>
-                                <div class="form-hint-row">
-                                    <span class="form-hint" x-show="fromAmount && !isStablecoin(getFromSymbol()) && fromAssetPrice > 0" x-text="'~$' + formatUsd(parseFloat(fromAmount) * fromAssetPrice)"></span>
-                                    <div class="recalc-buttons" x-show="showFromAmountRecalc && canRecalc()">
-                                        <button type="button" class="recalc-btn" @click="recalcToAmount()" x-show="price" x-text="'Calc ' + getToSymbol() + ' amount'"></button>
-                                        <button type="button" class="recalc-btn" @click="recalcPrice()" x-show="toAmount" x-text="'Calc ' + getFromSymbol() + '/' + getToSymbol() + ' price'"></button>
-                                    </div>
-                                </div>
+                                <small class="form-hint">
+                                    <span x-show="fromSymbol && holdings[fromSymbol]" x-text="'Available: ' + formatNumber(holdings[fromSymbol] || 0)"></span>
+                                    <span x-show="fromSymbol && prices[fromSymbol]" x-text="' | Price: $' + formatUsd(prices[fromSymbol] || 0)"></span>
+                                </small>
+                            </div>
+                            <div class="form-group">
+                                <label>Amount <span class="required">*</span></label>
+                                <input type="number" name="from_amount" class="form-control"
+                                    step="any" min="0" required x-model="fromAmount" @input="calcRate()" placeholder="0.00">
                             </div>
                         </div>
 
@@ -135,97 +133,84 @@
                             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <path d="M7 16V4m0 0L3 8m4-4l4 4M17 8v12m0 0l4-4m-4 4l-4-4"/>
                             </svg>
-                            <span class="exchange-rate" x-show="exchangeRate" x-text="'1 ' + getToSymbol() + ' = ' + formatRate(exchangeRate) + ' ' + getFromSymbol()"></span>
+                            <span class="exchange-rate" x-show="exchangeRate > 0" x-text="'1 ' + toSymbol + ' = ' + formatRate(exchangeRate) + ' ' + fromSymbol"></span>
                         </div>
 
                         <div class="exchange-section">
                             <div class="exchange-section-header">
                                 <span class="badge badge-success">To</span>
-                                <span class="usd-hint" x-show="toUsd" x-text="'~$' + formatUsd(toUsd)"></span>
+                                <span class="usd-hint" x-show="toUsd > 0" x-text="'~$' + formatUsd(toUsd)"></span>
+                                <span class="value-hint" x-show="toValueInFrom > 0" x-text="'= ' + formatNumber(toValueInFrom) + ' ' + fromSymbol"></span>
                             </div>
-                            <div class="form-group">
-                                <label for="ex-to-asset">Asset <span class="required">*</span></label>
-                                <div class="asset-search-container">
-                                    <input type="text" id="ex-to-search" class="form-control"
-                                        x-model="toSearch"
-                                        @focus="onToSearchFocus()"
-                                        @input="onToSearchInput()"
-                                        @keydown.escape="toSearchOpen = false"
-                                        @keydown.arrow-down.prevent="toSearchIndex = Math.min(toSearchIndex + 1, toSearchResults.length - 1)"
-                                        @keydown.arrow-up.prevent="toSearchIndex = Math.max(toSearchIndex - 1, 0)"
-                                        @keydown.enter.prevent="selectToAsset(toSearchResults[toSearchIndex])"
-                                        placeholder="Search currency..."
+                            <div class="form-group" x-data="cryptoSearchTo()" x-init="$watch('toSymbol', v => { search = v; onSymbolSelected(v); })">
+                                <label>Symbol <span class="required">*</span></label>
+                                <div class="crypto-select" @click.outside="showDropdown = false">
+                                    <input type="text" name="to_symbol" class="form-control" required
+                                        x-model="search" placeholder="Search crypto..."
+                                        @input="onInput($event.target.value)"
+                                        @focus="onFocus()"
+                                        @keydown.arrow-down.prevent="highlightNext()"
+                                        @keydown.arrow-up.prevent="highlightPrev()"
+                                        @keydown.enter.prevent="selectHighlighted()"
+                                        @keydown.escape="showDropdown = false"
                                         autocomplete="off">
-                                    <input type="hidden" name="to_asset_id" x-model="toAssetId">
-                                    <input type="hidden" name="to_symbol" x-model="toSearch">
-                                    <div class="asset-dropdown" x-show="toSearchOpen && toSearchResults.length > 0" @click.outside="toSearchOpen = false">
-                                        <template x-for="(result, index) in toSearchResults" :key="result.symbol">
-                                            <div class="asset-dropdown-item"
-                                                :class="{ 'active': index === toSearchIndex }"
-                                                @click="selectToAsset(result)"
-                                                @mouseenter="toSearchIndex = index">
-                                                <span class="asset-symbol" x-text="result.symbol"></span>
-                                                <span class="asset-price" x-text="'$' + formatUsd(result.price)"></span>
+                                    <div class="crypto-dropdown" x-show="showDropdown && filteredCryptos.length > 0" x-cloak>
+                                        <template x-for="(crypto, index) in filteredCryptos" :key="crypto.symbol">
+                                            <div class="crypto-option"
+                                                :class="{ 'highlighted': index === highlightedIndex }"
+                                                @click="selectCrypto(crypto)"
+                                                @mouseenter="highlightedIndex = index">
+                                                <span class="crypto-symbol" x-text="crypto.symbol"></span>
+                                                <span class="crypto-name" x-text="crypto.name"></span>
                                             </div>
                                         </template>
                                     </div>
-                                    <div class="asset-dropdown" x-show="toSearchOpen && toSearchLoading">
-                                        <div class="asset-dropdown-loading">Loading currencies...</div>
-                                    </div>
                                 </div>
                             </div>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <div class="label-with-hint">
-                                        <label for="ex-price">
-                                            Price
-                                            <span class="price-unit" x-show="fromAssetId && (toAssetId || toSearch)" x-text="'(' + getFromSymbol() + '/' + getToSymbol() + ')'"></span>
-                                        </label>
-                                    </div>
-                                    <input type="number" id="ex-price" class="form-control"
-                                        step="any" min="0" x-model="price" @input="onPriceInput()" placeholder="0.00">
-                                    <div class="form-hint-row">
-                                        <span class="form-hint" x-show="toAssetPrice && !isStablecoin(getFromSymbol())" x-text="'~$' + formatUsd(toAssetPrice) + '/' + getToSymbol()"></span>
-                                        <div class="recalc-buttons" x-show="showPriceRecalc && canRecalc()">
-                                            <button type="button" class="recalc-btn" @click="recalcFromAmount()" x-show="toAmount" x-text="'Calc ' + getFromSymbol() + ' amount'"></button>
-                                            <button type="button" class="recalc-btn" @click="recalcToAmount()" x-show="fromAmount" x-text="'Calc ' + getToSymbol() + ' amount'"></button>
-                                        </div>
-                                    </div>
+                            <div class="form-group">
+                                <div class="label-with-hint">
+                                    <label>Price <span x-show="fromSymbol" x-text="'(' + fromSymbol + ')'"></span></label>
+                                    <span class="usd-hint" x-show="toSymbolUsdPrice > 0" x-text="'$' + formatUsd(toSymbolUsdPrice)"></span>
                                 </div>
-                                <div class="form-group">
-                                    <label for="ex-to-amount">Amount <span class="required">*</span></label>
-                                    <input type="number" id="ex-to-amount" name="to_amount" class="form-control"
-                                        step="any" min="0" required x-model="toAmount" @input="onToAmountInput()" placeholder="0.00">
-                                    <div class="form-hint-row">
-                                        <span></span>
-                                        <div class="recalc-buttons" x-show="showToAmountRecalc && canRecalc()">
-                                            <button type="button" class="recalc-btn" @click="recalcFromAmount()" x-show="price" x-text="'Calc ' + getFromSymbol() + ' amount'"></button>
-                                            <button type="button" class="recalc-btn" @click="recalcPrice()" x-show="fromAmount" x-text="'Calc ' + getFromSymbol() + '/' + getToSymbol() + ' price'"></button>
-                                        </div>
-                                    </div>
-                                </div>
+                                <input type="number" name="to_price" class="form-control"
+                                    step="any" min="0" x-model="toPrice" placeholder="0.00">
+                                <button type="button" class="btn btn-sm btn-secondary mt-1"
+                                    x-show="canCalcToPrice"
+                                    @click="calcToPrice()"
+                                    x-text="'Calc ' + toSymbol + ' price'">
+                                </button>
+                            </div>
+                            <div class="form-group">
+                                <label>Amount <span class="required">*</span></label>
+                                <input type="number" name="to_amount" class="form-control"
+                                    step="any" min="0" required x-model="toAmount" @input="calcRate()" placeholder="0.00">
+                                <button type="button" class="btn btn-sm btn-secondary mt-1"
+                                    x-show="canCalcToAmount"
+                                    @click="calcToAmount()"
+                                    x-text="'Calc ' + toSymbol + ' amount'">
+                                </button>
                             </div>
                         </div>
 
                         <div class="form-row">
                             <div class="form-group">
-                                <label for="ex-fee">Fee</label>
-                                <input type="number" id="ex-fee" name="fee" class="form-control"
+                                <label>Fee</label>
+                                <input type="number" name="fee" class="form-control"
                                     step="any" min="0" x-model="fee" placeholder="0.00">
                             </div>
                             <div class="form-group">
-                                <label for="ex-fee-currency">Fee Currency</label>
-                                <input type="text" id="ex-fee-currency" name="fee_currency" class="form-control"
+                                <label>Fee Currency</label>
+                                <input type="text" name="fee_currency" class="form-control"
                                     x-model="feeCurrency" placeholder="e.g., USDT">
                             </div>
                         </div>
                         <div class="form-group">
-                            <label for="ex-timestamp">Date <span class="required">*</span></label>
-                            <input type="datetime-local" id="ex-timestamp" name="timestamp" class="form-control" required x-model="timestamp">
+                            <label>Date <span class="required">*</span></label>
+                            <input type="datetime-local" name="timestamp" class="form-control" required x-model="timestamp">
                         </div>
                         <div class="form-group">
-                            <label for="ex-notes">Notes</label>
-                            <textarea id="ex-notes" name="notes" class="form-control" rows="2" x-model="notes" placeholder="Optional notes..."></textarea>
+                            <label>Notes</label>
+                            <textarea name="notes" class="form-control" rows="2" x-model="notes" placeholder="Optional notes..."></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -257,55 +242,190 @@
 </div>
 
 <script>
+let cachedExchangeCryptos = null;
+
+async function fetchExchangeCryptos() {
+    if (cachedExchangeCryptos) return cachedExchangeCryptos;
+    try {
+        const response = await fetch('/api/ui/cryptos');
+        cachedExchangeCryptos = await response.json();
+        return cachedExchangeCryptos;
+    } catch (e) {
+        console.error('Failed to fetch cryptos:', e);
+        return [];
+    }
+}
+
+function cryptoSearchFrom() {
+    return {
+        search: '',
+        assets: [],
+        filteredAssets: [],
+        showDropdown: false,
+        highlightedIndex: 0,
+        init() {
+            const holdings = this.$data.holdings;
+            this.assets = Object.keys(holdings)
+                .filter(symbol => holdings[symbol] > 0)
+                .map(symbol => ({ symbol, amount: holdings[symbol] }))
+                .sort((a, b) => a.symbol.localeCompare(b.symbol));
+        },
+        onFocus() {
+            this.filterAssets();
+            this.showDropdown = true;
+            this.highlightedIndex = 0;
+        },
+        onInput(value) {
+            this.search = value.toUpperCase();
+            this.filterAssets();
+            this.highlightedIndex = 0;
+        },
+        filterAssets() {
+            if (!this.search) {
+                this.filteredAssets = this.assets.slice(0, 10);
+                return;
+            }
+            const term = this.search.toLowerCase();
+            this.filteredAssets = this.assets
+                .filter(a => a.symbol.toLowerCase().includes(term))
+                .slice(0, 10);
+        },
+        selectAsset(asset) {
+            this.search = asset.symbol;
+            this.$data.fromSymbol = asset.symbol;
+            this.showDropdown = false;
+        },
+        highlightNext() {
+            if (this.highlightedIndex < this.filteredAssets.length - 1) {
+                this.highlightedIndex++;
+            }
+        },
+        highlightPrev() {
+            if (this.highlightedIndex > 0) {
+                this.highlightedIndex--;
+            }
+        },
+        selectHighlighted() {
+            if (this.filteredAssets.length > 0) {
+                this.selectAsset(this.filteredAssets[this.highlightedIndex]);
+            }
+        }
+    }
+}
+
+function cryptoSearchTo() {
+    return {
+        search: '',
+        cryptos: [],
+        filteredCryptos: [],
+        showDropdown: false,
+        highlightedIndex: 0,
+        async init() {
+            this.cryptos = await fetchExchangeCryptos();
+        },
+        onFocus() {
+            this.filterCryptos();
+            this.showDropdown = true;
+            this.highlightedIndex = 0;
+        },
+        onInput(value) {
+            this.search = value.toUpperCase();
+            this.filterCryptos();
+            this.highlightedIndex = 0;
+        },
+        filterCryptos() {
+            if (!this.search) {
+                this.filteredCryptos = this.cryptos.slice(0, 10);
+                return;
+            }
+            const term = this.search.toLowerCase();
+            this.filteredCryptos = this.cryptos
+                .filter(c => c.symbol.toLowerCase().includes(term) || c.name.toLowerCase().includes(term))
+                .slice(0, 10);
+        },
+        selectCrypto(crypto) {
+            this.search = crypto.symbol;
+            this.$data.toSymbol = crypto.symbol;
+            this.$data.toSymbolUsdPrice = crypto.price || 0;
+            this.calcPriceInFromAsset(crypto.price);
+            this.showDropdown = false;
+        },
+        calcPriceInFromAsset(toUsdPrice) {
+            if (!toUsdPrice || toUsdPrice <= 0) return;
+            const fromSymbol = this.$data.fromSymbol;
+            const pricesObj = Alpine.raw(this.$data.prices);
+            const fromUsdPrice = pricesObj[fromSymbol] || 0;
+            if (fromUsdPrice > 0) {
+                const priceInFromAsset = toUsdPrice / fromUsdPrice;
+                this.$data.toPrice = priceInFromAsset;
+            }
+        },
+        onSymbolSelected(symbol) {
+            const crypto = this.cryptos.find(c => c.symbol === symbol);
+            if (crypto && crypto.price) {
+                this.$data.toSymbolUsdPrice = crypto.price;
+                this.calcPriceInFromAsset(crypto.price);
+            }
+        },
+        highlightNext() {
+            if (this.highlightedIndex < this.filteredCryptos.length - 1) {
+                this.highlightedIndex++;
+            }
+        },
+        highlightPrev() {
+            if (this.highlightedIndex > 0) {
+                this.highlightedIndex--;
+            }
+        },
+        selectHighlighted() {
+            if (this.filteredCryptos.length > 0) {
+                this.selectCrypto(this.filteredCryptos[this.highlightedIndex]);
+            }
+        }
+    }
+}
+
 function exchangeModal() {
     const holdings = {{.HoldingsJSON}};
     const prices = {{.PricesJSON}};
-    const assetSymbols = {
-        {{range .Assets}}'{{.ID}}': '{{.Symbol}}',{{end}}
-    };
 
     return {
         open: false,
         isEdit: false,
         exchangeId: null,
-        fromAssetId: '',
+        fromSymbol: '',
         fromAmount: '',
-        toAssetId: '',
+        toSymbol: '',
         toAmount: '',
-        price: '',
+        toPrice: '',
+        toSymbolUsdPrice: 0,
         fee: '',
         feeCurrency: '',
         timestamp: '',
         notes: '',
-
-        // To asset search state
-        toSearch: '',
-        toSearchOpen: false,
-        toSearchLoading: false,
-        toSearchResults: [],
-        toSearchIndex: 0,
-        allCurrencies: [],
-        toAssetPrice: 0,
-
-        // From amount state
-        selectedPercent: null,
-        fromAssetPrice: 0,
-
-        // Recalc button visibility
-        showFromAmountRecalc: false,
-        showPriceRecalc: false,
-        showToAmountRecalc: false,
+        holdings: holdings,
+        prices: prices,
 
         get fromUsd() {
             const amount = parseFloat(this.fromAmount) || 0;
-            const usdPrice = prices[this.fromAssetId] || 0;
-            return amount * usdPrice;
+            const price = prices[this.fromSymbol] || 0;
+            return amount * price;
         },
 
         get toUsd() {
             const amount = parseFloat(this.toAmount) || 0;
-            const usdPrice = this.toAssetPrice || prices[this.toAssetId] || 0;
+            const usdPrice = this.toSymbolUsdPrice || 0;
             return amount * usdPrice;
+        },
+
+        get toValueInFrom() {
+            const toAmt = parseFloat(this.toAmount) || 0;
+            const fromPrice = prices[this.fromSymbol] || 0;
+            const toPrice = parseFloat(this.toPrice) || 0;
+            if (toAmt > 0 && fromPrice > 0 && toPrice > 0) {
+                return (toAmt * toPrice) / fromPrice;
+            }
+            return 0;
         },
 
         get exchangeRate() {
@@ -317,17 +437,50 @@ function exchangeModal() {
             return 0;
         },
 
-        getHolding(assetId) {
-            return holdings[String(assetId)] || 0;
+        get canCalcToAmount() {
+            const fromAmt = parseFloat(this.fromAmount) || 0;
+            const fromPrice = prices[this.fromSymbol] || 0;
+            const toPrice = parseFloat(this.toPrice) || 0;
+            return fromAmt > 0 && fromPrice > 0 && toPrice > 0 && this.toSymbol;
         },
 
-        getFromSymbol() {
-            return assetSymbols[this.fromAssetId] || '';
+        get canCalcToPrice() {
+            const fromAmt = parseFloat(this.fromAmount) || 0;
+            const toAmt = parseFloat(this.toAmount) || 0;
+            const fromPrice = prices[this.fromSymbol] || 0;
+            return fromAmt > 0 && toAmt > 0 && fromPrice > 0 && this.toSymbol;
         },
 
-        getToSymbol() {
-            if (this.toSearch) return this.toSearch;
-            return assetSymbols[this.toAssetId] || '';
+        get estimatedToAmount() {
+            const fromAmt = parseFloat(this.fromAmount) || 0;
+            const fromPrice = prices[this.fromSymbol] || 0;
+            const toPrice = parseFloat(this.toPrice) || 0;
+            if (fromAmt > 0 && fromPrice > 0 && toPrice > 0) {
+                return (fromAmt * fromPrice) / toPrice;
+            }
+            return 0;
+        },
+
+        get estimatedToPrice() {
+            const fromAmt = parseFloat(this.fromAmount) || 0;
+            const toAmt = parseFloat(this.toAmount) || 0;
+            const fromPrice = prices[this.fromSymbol] || 0;
+            if (fromAmt > 0 && toAmt > 0 && fromPrice > 0) {
+                return (fromAmt * fromPrice) / toAmt;
+            }
+            return 0;
+        },
+
+        calcToAmount() {
+            if (this.canCalcToAmount) {
+                this.toAmount = this.estimatedToAmount.toFixed(8).replace(/\.?0+$/, '');
+            }
+        },
+
+        calcToPrice() {
+            if (this.canCalcToPrice) {
+                this.toPrice = this.estimatedToPrice.toFixed(8).replace(/\.?0+$/, '');
+            }
         },
 
         formatNumber(num) {
@@ -341,199 +494,42 @@ function exchangeModal() {
         },
 
         formatRate(num) {
-            if (num >= 1) return num.toLocaleString(undefined, { maximumFractionDigits: 2 });
+            if (num >= 1) return num.toLocaleString(undefined, { maximumFractionDigits: 4 });
             return num.toLocaleString(undefined, { maximumFractionDigits: 8 });
         },
 
-        isStablecoin(symbol) {
-            return ['USD', 'USDT', 'USDC', 'BUSD', 'DAI'].includes(symbol);
-        },
-
-        setFromPercent(pct) {
-            const holding = this.getHolding(this.fromAssetId);
-            this.fromAmount = holding * (pct / 100);
-            this.selectedPercent = pct;
-            this.showFromAmountRecalc = true;
-            this.hideOtherRecalc('fromAmount');
-        },
-
-        onFromAmountInput() {
-            this.selectedPercent = null;
-            this.showFromAmountRecalc = true;
-            this.hideOtherRecalc('fromAmount');
-        },
-
-        onPriceInput() {
-            this.showPriceRecalc = true;
-            this.hideOtherRecalc('price');
-        },
-
-        onToAmountInput() {
-            this.showToAmountRecalc = true;
-            this.hideOtherRecalc('toAmount');
-        },
-
-        hideOtherRecalc(except) {
-            if (except !== 'fromAmount') this.showFromAmountRecalc = false;
-            if (except !== 'price') this.showPriceRecalc = false;
-            if (except !== 'toAmount') this.showToAmountRecalc = false;
-        },
-
-        canRecalc() {
-            return this.fromAssetId && (this.toAssetId || this.toSearch);
-        },
-
-        recalcFromAmount() {
-            const toAmt = parseFloat(this.toAmount) || 0;
-            const p = parseFloat(this.price) || 0;
-            if (toAmt > 0 && p > 0) {
-                this.fromAmount = toAmt * p;
-                this.selectedPercent = null;
-                this.$dispatch('show-toast', { message: 'From amount calculated', type: 'success' });
-            }
-            this.hideOtherRecalc(null);
-        },
-
-        recalcPrice() {
-            const fromAmt = parseFloat(this.fromAmount) || 0;
-            const toAmt = parseFloat(this.toAmount) || 0;
-            if (fromAmt > 0 && toAmt > 0) {
-                this.price = fromAmt / toAmt;
-                this.$dispatch('show-toast', { message: 'Price calculated', type: 'success' });
-            }
-            this.hideOtherRecalc(null);
-        },
-
-        recalcToAmount() {
-            const fromAmt = parseFloat(this.fromAmount) || 0;
-            const p = parseFloat(this.price) || 0;
-            if (fromAmt > 0 && p > 0) {
-                this.toAmount = fromAmt / p;
-                this.$dispatch('show-toast', { message: 'To amount calculated', type: 'success' });
-            }
-            this.hideOtherRecalc(null);
-        },
-
-        onFromAssetChange() {
-            const symbol = this.getFromSymbol();
-            if (this.isStablecoin(symbol)) {
-                this.fromAssetPrice = 1;
-            } else {
-                this.fromAssetPrice = prices[this.fromAssetId] || 0;
-            }
-            this.selectedPercent = null;
-            this.calcExchangePrice();
-        },
-
-        async onToSearchFocus() {
-            this.toSearchOpen = true;
-            this.toSearchLoading = true;
-            try {
-                const resp = await fetch('/api/prices/currencies');
-                if (resp.ok) {
-                    this.allCurrencies = await resp.json();
-                }
-            } catch (e) {
-                console.error('Failed to fetch currencies:', e);
-            }
-            this.toSearchLoading = false;
-            this.filterToResults();
-        },
-
-        onToSearchInput() {
-            this.filterToResults();
-            this.toSearchOpen = true;
-            this.toSearchIndex = 0;
-        },
-
-        filterToResults() {
-            const q = this.toSearch.toUpperCase();
-            if (!q) {
-                this.toSearchResults = this.allCurrencies.slice(0, 20);
-            } else {
-                this.toSearchResults = this.allCurrencies
-                    .filter(c => c.symbol.includes(q))
-                    .slice(0, 20);
-            }
-        },
-
-        selectToAsset(result) {
-            if (!result) return;
-            this.toSearch = result.symbol;
-            this.toAssetPrice = result.price;
-            this.toAssetId = '';
-            this.toSearchOpen = false;
-            this.calcExchangePrice();
-        },
-
-        calcExchangePrice() {
-            const fromUsdPrice = this.fromAssetPrice || prices[this.fromAssetId] || 0;
-            const toUsdPrice = this.toAssetPrice || 0;
-            if (fromUsdPrice > 0 && toUsdPrice > 0) {
-                this.price = toUsdPrice / fromUsdPrice;
-            }
+        calcRate() {
         },
 
         openAdd() {
             this.isEdit = false;
             this.exchangeId = null;
-            this.fromAssetId = '';
+            this.fromSymbol = '';
             this.fromAmount = '';
-            this.toAssetId = '';
+            this.toSymbol = '';
             this.toAmount = '';
-            this.price = '';
+            this.toPrice = '';
+            this.toSymbolUsdPrice = 0;
             this.fee = '';
             this.feeCurrency = '';
             this.timestamp = new Date().toISOString().slice(0, 16);
             this.notes = '';
-            this.toSearch = '';
-            this.toSearchOpen = false;
-            this.toSearchResults = [];
-            this.toSearchIndex = 0;
-            this.toAssetPrice = 0;
-            this.selectedPercent = null;
-            this.fromAssetPrice = 0;
-            this.showFromAmountRecalc = false;
-            this.showPriceRecalc = false;
-            this.showToAmountRecalc = false;
             this.open = true;
         },
 
         openEdit(detail) {
             this.isEdit = true;
             this.exchangeId = detail.id;
-            this.fromAssetId = String(detail.from_asset_id);
+            this.fromSymbol = detail.from_symbol;
             this.fromAmount = detail.from_amount;
-            this.toAssetId = detail.to_asset_id;
+            this.toSymbol = detail.to_symbol;
             this.toAmount = detail.to_amount;
+            this.toPrice = '';
+            this.toSymbolUsdPrice = 0;
             this.fee = detail.fee || '';
             this.feeCurrency = detail.fee_currency || '';
             this.timestamp = detail.timestamp;
             this.notes = detail.notes || '';
-            this.toSearch = assetSymbols[detail.to_asset_id] || '';
-            this.toSearchOpen = false;
-            this.toAssetPrice = prices[detail.to_asset_id] || 0;
-            this.selectedPercent = null;
-
-            const symbol = this.getFromSymbol();
-            if (this.isStablecoin(symbol)) {
-                this.fromAssetPrice = 1;
-            } else {
-                this.fromAssetPrice = prices[this.fromAssetId] || 0;
-            }
-
-            // Calculate price from existing amounts
-            const fromAmt = parseFloat(this.fromAmount) || 0;
-            const toAmt = parseFloat(this.toAmount) || 0;
-            if (fromAmt > 0 && toAmt > 0) {
-                this.price = fromAmt / toAmt;
-            } else {
-                this.price = '';
-            }
-
-            this.showFromAmountRecalc = false;
-            this.showPriceRecalc = false;
-            this.showToAmountRecalc = false;
             this.open = true;
         }
     }

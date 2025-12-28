@@ -10,67 +10,70 @@ import (
 	"hodlbook/internal/models"
 	"hodlbook/internal/repo"
 	"hodlbook/pkg/types/cache"
+	"hodlbook/pkg/types/prices"
 
 	"github.com/gin-gonic/gin"
 )
 
-type TransactionsHandler struct {
-	renderer   *Renderer
-	repo       *repo.Repository
-	priceCache cache.Cache[string, float64]
+type AssetsPageHandler struct {
+	renderer     *Renderer
+	repo         *repo.Repository
+	priceCache   cache.Cache[string, float64]
+	priceFetcher prices.PriceFetcher
 }
 
-func NewTransactionsHandler(renderer *Renderer, repository *repo.Repository, priceCache cache.Cache[string, float64]) *TransactionsHandler {
-	return &TransactionsHandler{
-		renderer:   renderer,
-		repo:       repository,
-		priceCache: priceCache,
+func NewAssetsPageHandler(renderer *Renderer, repository *repo.Repository, priceCache cache.Cache[string, float64], priceFetcher prices.PriceFetcher) *AssetsPageHandler {
+	return &AssetsPageHandler{
+		renderer:     renderer,
+		repo:         repository,
+		priceCache:   priceCache,
+		priceFetcher: priceFetcher,
 	}
 }
 
-type TransactionsPageData struct {
+type AssetsPageData struct {
 	Title      string
 	PageTitle  string
 	ActivePage string
-	Assets     []models.Asset
+	Symbols    []string
 }
 
-func (h *TransactionsHandler) Index(c *gin.Context) {
-	assets, _ := h.repo.GetAllAssets()
+func (h *AssetsPageHandler) Index(c *gin.Context) {
+	symbols, _ := h.repo.GetUniqueSymbols()
 
-	data := TransactionsPageData{
-		Title:      "Transactions",
-		PageTitle:  "Transactions",
-		ActivePage: "transactions",
-		Assets:     assets,
+	data := AssetsPageData{
+		Title:      "Assets",
+		PageTitle:  "Assets",
+		ActivePage: "assets",
+		Symbols:    symbols,
 	}
-	h.renderer.HTML(c, http.StatusOK, "transactions", data)
+	h.renderer.HTML(c, http.StatusOK, "assets", data)
 }
 
-type TransactionsTableData struct {
-	Transactions []TransactionRow
-	Empty        bool
-	Page         int
-	TotalPages   int
-	HasPrev      bool
-	HasNext      bool
+type AssetsTableData struct {
+	Assets     []AssetRow
+	Empty      bool
+	Page       int
+	TotalPages int
+	HasPrev    bool
+	HasNext    bool
 }
 
-type TransactionRow struct {
-	ID        int64
-	Type      string
-	TypeClass string
-	Symbol    string
-	AssetID   int64
-	Amount    string
-	AmountRaw float64
-	Date      string
-	Timestamp string
-	Notes     string
+type AssetRow struct {
+	ID              int64
+	Symbol          string
+	Name            string
+	TransactionType string
+	TypeClass       string
+	Amount          string
+	AmountRaw       float64
+	Date            string
+	Timestamp       string
+	Notes           string
 }
 
-func (h *TransactionsHandler) Table(c *gin.Context) {
-	assetIDStr := c.Query("asset_id")
+func (h *AssetsPageHandler) Table(c *gin.Context) {
+	symbol := c.Query("symbol")
 	txType := c.Query("type")
 	fromStr := c.Query("from")
 	toStr := c.Query("to")
@@ -82,33 +85,29 @@ func (h *TransactionsHandler) Table(c *gin.Context) {
 	}
 	limit := 20
 
-	transactions, _ := h.repo.GetAllTransactions()
-	symbols := h.getAssetSymbols()
+	assets, _ := h.repo.GetAllAssets()
 
-	var filtered []models.Transaction
-	for _, tx := range transactions {
-		if assetIDStr != "" {
-			assetID, _ := strconv.ParseInt(assetIDStr, 10, 64)
-			if tx.AssetID != assetID {
-				continue
-			}
+	var filtered []models.Asset
+	for _, asset := range assets {
+		if symbol != "" && asset.Symbol != symbol {
+			continue
 		}
-		if txType != "" && tx.Type != txType {
+		if txType != "" && asset.TransactionType != txType {
 			continue
 		}
 		if fromStr != "" {
 			from, err := time.Parse("2006-01-02", fromStr)
-			if err == nil && tx.Timestamp.Before(from) {
+			if err == nil && asset.Timestamp.Before(from) {
 				continue
 			}
 		}
 		if toStr != "" {
 			to, err := time.Parse("2006-01-02", toStr)
-			if err == nil && tx.Timestamp.After(to.Add(24*time.Hour)) {
+			if err == nil && asset.Timestamp.After(to.Add(24*time.Hour)) {
 				continue
 			}
 		}
-		filtered = append(filtered, tx)
+		filtered = append(filtered, asset)
 	}
 
 	sort.Slice(filtered, func(i, j int) bool {
@@ -132,55 +131,69 @@ func (h *TransactionsHandler) Table(c *gin.Context) {
 
 	paginated := filtered[start:end]
 
-	var rows []TransactionRow
-	for _, tx := range paginated {
+	var rows []AssetRow
+	for _, asset := range paginated {
 		typeClass := "neutral"
-		switch tx.Type {
-		case "buy", "deposit":
+		switch asset.TransactionType {
+		case "deposit":
 			typeClass = "positive"
-		case "sell", "withdraw":
+		case "withdraw":
 			typeClass = "negative"
 		}
 
-		rows = append(rows, TransactionRow{
-			ID:        tx.ID,
-			Type:      tx.Type,
-			TypeClass: typeClass,
-			Symbol:    symbols[tx.AssetID],
-			AssetID:   tx.AssetID,
-			Amount:    formatAmount(tx.Amount),
-			AmountRaw: tx.Amount,
-			Date:      tx.Timestamp.Format("Jan 2, 2006 15:04"),
-			Timestamp: tx.Timestamp.Format("2006-01-02T15:04"),
-			Notes:     tx.Notes,
+		rows = append(rows, AssetRow{
+			ID:              asset.ID,
+			Symbol:          asset.Symbol,
+			Name:            asset.Name,
+			TransactionType: asset.TransactionType,
+			TypeClass:       typeClass,
+			Amount:          formatAmount(asset.Amount),
+			AmountRaw:       asset.Amount,
+			Date:            asset.Timestamp.Format("Jan 2, 2006 15:04"),
+			Timestamp:       asset.Timestamp.Format("2006-01-02T15:04"),
+			Notes:           asset.Notes,
 		})
 	}
 
-	data := TransactionsTableData{
-		Transactions: rows,
-		Empty:        len(rows) == 0,
-		Page:         page,
-		TotalPages:   totalPages,
-		HasPrev:      page > 1,
-		HasNext:      page < totalPages,
+	data := AssetsTableData{
+		Assets:     rows,
+		Empty:      len(rows) == 0,
+		Page:       page,
+		TotalPages: totalPages,
+		HasPrev:    page > 1,
+		HasNext:    page < totalPages,
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
-	c.HTML(http.StatusOK, "transactions_table.html", data)
+	c.HTML(http.StatusOK, "assets_table.html", data)
 }
 
-type CreateTransactionRequest struct {
-	Type      string  `form:"type" binding:"required"`
-	AssetID   int64   `form:"asset_id" binding:"required"`
-	Amount    float64 `form:"amount" binding:"required"`
-	Timestamp string  `form:"timestamp" binding:"required"`
-	Notes     string  `form:"notes"`
+type CreateAssetRequest struct {
+	Symbol          string  `form:"symbol" binding:"required"`
+	Name            string  `form:"name"`
+	TransactionType string  `form:"type" binding:"required"`
+	Amount          float64 `form:"amount" binding:"required"`
+	Timestamp       string  `form:"timestamp" binding:"required"`
+	Notes           string  `form:"notes"`
 }
 
-func (h *TransactionsHandler) Create(c *gin.Context) {
-	var req CreateTransactionRequest
+func (h *AssetsPageHandler) Create(c *gin.Context) {
+	var req CreateAssetRequest
 	if err := c.ShouldBind(&req); err != nil {
 		c.Header("HX-Trigger", `{"show-toast": {"message": "All required fields must be filled", "type": "error"}}`)
+		h.Table(c)
+		return
+	}
+
+	req.Symbol = strings.ToUpper(strings.TrimSpace(req.Symbol))
+	req.TransactionType = strings.ToLower(strings.TrimSpace(req.TransactionType))
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		req.Name = req.Symbol
+	}
+
+	if req.TransactionType != "deposit" && req.TransactionType != "withdraw" {
+		c.Header("HX-Trigger", `{"show-toast": {"message": "Invalid type. Must be deposit or withdraw", "type": "error"}}`)
 		h.Table(c)
 		return
 	}
@@ -190,16 +203,17 @@ func (h *TransactionsHandler) Create(c *gin.Context) {
 		timestamp = time.Now()
 	}
 
-	tx := &models.Transaction{
-		Type:      strings.ToLower(req.Type),
-		AssetID:   req.AssetID,
-		Amount:    req.Amount,
-		Timestamp: timestamp,
-		Notes:     req.Notes,
+	asset := &models.Asset{
+		Symbol:          req.Symbol,
+		Name:            req.Name,
+		TransactionType: req.TransactionType,
+		Amount:          req.Amount,
+		Timestamp:       timestamp,
+		Notes:           req.Notes,
 	}
 
-	if err := h.repo.CreateTransaction(tx); err != nil {
-		c.Header("HX-Trigger", `{"show-toast": {"message": "Failed to create transaction", "type": "error"}}`)
+	if err := h.repo.CreateAsset(asset); err != nil {
+		c.Header("HX-Trigger", `{"show-toast": {"message": "Failed to create asset entry", "type": "error"}}`)
 		h.Table(c)
 		return
 	}
@@ -207,18 +221,31 @@ func (h *TransactionsHandler) Create(c *gin.Context) {
 	h.Table(c)
 }
 
-func (h *TransactionsHandler) Update(c *gin.Context) {
+func (h *AssetsPageHandler) Update(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		c.Header("HX-Trigger", `{"show-toast": {"message": "Invalid transaction ID", "type": "error"}}`)
+		c.Header("HX-Trigger", `{"show-toast": {"message": "Invalid ID", "type": "error"}}`)
 		h.Table(c)
 		return
 	}
 
-	var req CreateTransactionRequest
+	var req CreateAssetRequest
 	if err := c.ShouldBind(&req); err != nil {
 		c.Header("HX-Trigger", `{"show-toast": {"message": "All required fields must be filled", "type": "error"}}`)
+		h.Table(c)
+		return
+	}
+
+	req.Symbol = strings.ToUpper(strings.TrimSpace(req.Symbol))
+	req.TransactionType = strings.ToLower(strings.TrimSpace(req.TransactionType))
+	req.Name = strings.TrimSpace(req.Name)
+	if req.Name == "" {
+		req.Name = req.Symbol
+	}
+
+	if req.TransactionType != "deposit" && req.TransactionType != "withdraw" {
+		c.Header("HX-Trigger", `{"show-toast": {"message": "Invalid type. Must be deposit or withdraw", "type": "error"}}`)
 		h.Table(c)
 		return
 	}
@@ -228,17 +255,18 @@ func (h *TransactionsHandler) Update(c *gin.Context) {
 		timestamp = time.Now()
 	}
 
-	tx := &models.Transaction{
-		ID:        id,
-		Type:      strings.ToLower(req.Type),
-		AssetID:   req.AssetID,
-		Amount:    req.Amount,
-		Timestamp: timestamp,
-		Notes:     req.Notes,
+	asset := &models.Asset{
+		ID:              id,
+		Symbol:          req.Symbol,
+		Name:            req.Name,
+		TransactionType: req.TransactionType,
+		Amount:          req.Amount,
+		Timestamp:       timestamp,
+		Notes:           req.Notes,
 	}
 
-	if err := h.repo.UpdateTransaction(tx); err != nil {
-		c.Header("HX-Trigger", `{"show-toast": {"message": "Failed to update transaction", "type": "error"}}`)
+	if err := h.repo.UpdateAsset(asset); err != nil {
+		c.Header("HX-Trigger", `{"show-toast": {"message": "Failed to update asset entry", "type": "error"}}`)
 		h.Table(c)
 		return
 	}
@@ -246,17 +274,17 @@ func (h *TransactionsHandler) Update(c *gin.Context) {
 	h.Table(c)
 }
 
-func (h *TransactionsHandler) Delete(c *gin.Context) {
+func (h *AssetsPageHandler) Delete(c *gin.Context) {
 	idStr := c.Param("id")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
-		c.Header("HX-Trigger", `{"show-toast": {"message": "Invalid transaction ID", "type": "error"}}`)
+		c.Header("HX-Trigger", `{"show-toast": {"message": "Invalid ID", "type": "error"}}`)
 		h.Table(c)
 		return
 	}
 
-	if err := h.repo.DeleteTransaction(id); err != nil {
-		c.Header("HX-Trigger", `{"show-toast": {"message": "Failed to delete transaction", "type": "error"}}`)
+	if err := h.repo.DeleteAsset(id); err != nil {
+		c.Header("HX-Trigger", `{"show-toast": {"message": "Failed to delete asset entry", "type": "error"}}`)
 		h.Table(c)
 		return
 	}
@@ -264,11 +292,45 @@ func (h *TransactionsHandler) Delete(c *gin.Context) {
 	h.Table(c)
 }
 
-func (h *TransactionsHandler) getAssetSymbols() map[int64]string {
-	assets, _ := h.repo.GetAllAssets()
-	symbols := make(map[int64]string)
-	for _, asset := range assets {
-		symbols[asset.ID] = asset.Symbol
+func (h *AssetsPageHandler) GetSymbols(c *gin.Context) {
+	symbols, err := h.repo.GetUniqueSymbols()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch symbols"})
+		return
 	}
-	return symbols
+	c.JSON(http.StatusOK, symbols)
+}
+
+func (h *AssetsPageHandler) GetAssets(c *gin.Context) {
+	assets, err := h.repo.GetAllAssets()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch assets"})
+		return
+	}
+	c.JSON(http.StatusOK, assets)
+}
+
+type SupportedCrypto struct {
+	Symbol string  `json:"symbol"`
+	Name   string  `json:"name"`
+	Price  float64 `json:"price"`
+}
+
+func (h *AssetsPageHandler) GetSupportedCryptos(c *gin.Context) {
+	priceList, err := h.priceFetcher.FetchAll()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch supported cryptos"})
+		return
+	}
+
+	cryptos := make([]SupportedCrypto, 0, len(priceList))
+	for _, p := range priceList {
+		cryptos = append(cryptos, SupportedCrypto{
+			Symbol: p.Asset.Symbol,
+			Name:   p.Asset.Name,
+			Price:  p.Value,
+		})
+	}
+
+	c.JSON(http.StatusOK, cryptos)
 }

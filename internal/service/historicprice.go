@@ -16,7 +16,7 @@ import (
 var ErrInvalidHistoricPriceConfig = errors.New("invalid historic price service config")
 
 type HistoricValueRepository interface {
-	GetAllAssets() ([]models.Asset, error)
+	GetUniqueSymbols() ([]string, error)
 	Insert(value *models.AssetHistoricValue) error
 }
 
@@ -103,21 +103,21 @@ func (s *HistoricPriceService) Stop() {
 }
 
 func (s *HistoricPriceService) tick() error {
-	assets, err := s.repo.GetAllAssets()
+	symbols, err := s.repo.GetUniqueSymbols()
 	if err != nil {
-		return errors.Wrap(err, "failed to get assets from DB")
+		return errors.Wrap(err, "failed to get symbols from DB")
 	}
 
-	if len(assets) == 0 {
+	if len(symbols) == 0 {
 		return nil
 	}
 
-	pricePairs := make([]*prices.Price, len(assets))
-	for i, asset := range assets {
+	pricePairs := make([]*prices.Price, len(symbols))
+	for i, symbol := range symbols {
 		pricePairs[i] = &prices.Price{
 			Asset: prices.Asset{
-				Symbol: asset.Symbol,
-				Name:   asset.Name,
+				Symbol: symbol,
+				Name:   symbol,
 			},
 		}
 	}
@@ -127,22 +127,21 @@ func (s *HistoricPriceService) tick() error {
 	}
 
 	now := time.Now()
-	for i, asset := range assets {
+	for i, symbol := range symbols {
 		historicValue := &models.AssetHistoricValue{
-			AssetID:   asset.ID,
+			Symbol:    symbol,
 			Value:     pricePairs[i].Value,
 			Timestamp: now,
 		}
 		if err := s.repo.Insert(historicValue); err != nil {
 			s.logger.Error("failed to insert historic value",
-				"asset_id", asset.ID,
-				"symbol", asset.Symbol,
+				"symbol", symbol,
 				"error", err,
 			)
 			continue
 		}
 	}
 
-	s.logger.Info("stored historic prices", "count", len(assets))
+	s.logger.Info("stored historic prices", "count", len(symbols))
 	return nil
 }

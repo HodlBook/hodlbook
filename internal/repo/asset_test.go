@@ -34,14 +34,18 @@ func TestAssetRepository_CRUD(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestAssetRepository_UniqueSymbol(t *testing.T) {
+func TestAssetRepository_MultipleWithSameSymbol(t *testing.T) {
 	db := setupTestDB(t)
 	repository, err := New(db)
 	require.NoError(t, err)
 
-	asset1 := &models.Asset{Symbol: "ETH", Name: "Ethereum"}
-	asset2 := &models.Asset{Symbol: "ETH", Name: "Ethereum Duplicate"}
+	asset1 := &models.Asset{Symbol: "ETH", Name: "Ethereum", TransactionType: "deposit", Amount: 1.0}
+	asset2 := &models.Asset{Symbol: "ETH", Name: "Ethereum", TransactionType: "deposit", Amount: 2.0}
 
 	require.NoError(t, repository.CreateAsset(asset1))
-	require.Error(t, repository.CreateAsset(asset2))
+	require.NoError(t, repository.CreateAsset(asset2))
+
+	assets, err := repository.GetAllAssets()
+	require.NoError(t, err)
+	require.Len(t, assets, 2)
 }

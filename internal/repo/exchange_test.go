@@ -14,8 +14,8 @@ func TestExchangeRepository_CRUD(t *testing.T) {
 	require.NoError(t, err)
 
 	exchange := &models.Exchange{
-		FromAssetID: 1,
-		ToAssetID:   2,
+		FromSymbol:  "BTC",
+		ToSymbol:    "ETH",
 		FromAmount:  1.0,
 		ToAmount:    30000.0,
 		Fee:         0.001,
@@ -47,26 +47,26 @@ func TestExchangeRepository_CRUD(t *testing.T) {
 	require.Error(t, err)
 }
 
-func TestExchangeRepository_GetByAssetID(t *testing.T) {
+func TestExchangeRepository_GetBySymbol(t *testing.T) {
 	db := setupTestDB(t)
 	repository, err := New(db)
 	require.NoError(t, err)
 
-	exchange1 := &models.Exchange{FromAssetID: 1, ToAssetID: 2, FromAmount: 1.0, ToAmount: 15.0, Timestamp: time.Now()}
-	exchange2 := &models.Exchange{FromAssetID: 2, ToAssetID: 3, FromAmount: 15.0, ToAmount: 30000.0, Timestamp: time.Now()}
+	exchange1 := &models.Exchange{FromSymbol: "BTC", ToSymbol: "ETH", FromAmount: 1.0, ToAmount: 15.0, Timestamp: time.Now()}
+	exchange2 := &models.Exchange{FromSymbol: "ETH", ToSymbol: "SOL", FromAmount: 15.0, ToAmount: 30000.0, Timestamp: time.Now()}
 
 	require.NoError(t, repository.CreateExchange(exchange1))
 	require.NoError(t, repository.CreateExchange(exchange2))
 
-	exchanges, err := repository.GetExchangesByAssetID(2)
+	exchanges, err := repository.GetExchangesBySymbol("ETH")
 	require.NoError(t, err)
 	require.Len(t, exchanges, 2)
 
-	exchanges, err = repository.GetExchangesByFromAssetID(1)
+	exchanges, err = repository.GetExchangesByFromSymbol("BTC")
 	require.NoError(t, err)
 	require.Len(t, exchanges, 1)
 
-	exchanges, err = repository.GetExchangesByToAssetID(3)
+	exchanges, err = repository.GetExchangesByToSymbol("SOL")
 	require.NoError(t, err)
 	require.Len(t, exchanges, 1)
 }
@@ -80,8 +80,8 @@ func TestExchangeRepository_GetByDateRange(t *testing.T) {
 	yesterday := now.Add(-24 * time.Hour)
 	twoDaysAgo := now.Add(-48 * time.Hour)
 
-	exchange1 := &models.Exchange{FromAssetID: 1, ToAssetID: 2, FromAmount: 1.0, ToAmount: 15.0, Timestamp: twoDaysAgo}
-	exchange2 := &models.Exchange{FromAssetID: 1, ToAssetID: 2, FromAmount: 2.0, ToAmount: 30.0, Timestamp: now}
+	exchange1 := &models.Exchange{FromSymbol: "BTC", ToSymbol: "ETH", FromAmount: 1.0, ToAmount: 15.0, Timestamp: twoDaysAgo}
+	exchange2 := &models.Exchange{FromSymbol: "BTC", ToSymbol: "ETH", FromAmount: 2.0, ToAmount: 30.0, Timestamp: now}
 
 	require.NoError(t, repository.CreateExchange(exchange1))
 	require.NoError(t, repository.CreateExchange(exchange2))

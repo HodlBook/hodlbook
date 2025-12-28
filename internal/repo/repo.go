@@ -24,7 +24,6 @@ func New(db *gorm.DB) (*Repository, error) {
 func (r *Repository) Migrate() error {
 	return r.db.AutoMigrate(
 		&models.Asset{},
-		&models.Transaction{},
 		&models.Exchange{},
 		&models.Price{},
 		&models.AssetHistoricValue{},

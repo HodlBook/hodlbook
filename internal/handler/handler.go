@@ -18,12 +18,12 @@ var (
 )
 
 type Handler struct {
-	engine            *gin.Engine
-	repository        *repo.Repository
-	priceCh           <-chan []byte
-	priceCHSet        bool
-	priceCache        cache.Cache[string, float64]
-	assetCreatedPub   pubsub.Publisher
+	engine          *gin.Engine
+	repository      *repo.Repository
+	priceCh         <-chan []byte
+	priceCHSet      bool
+	priceCache      cache.Cache[string, float64]
+	assetCreatedPub pubsub.Publisher
 }
 
 func (h *Handler) IsValid() error {
@@ -98,15 +98,10 @@ func (h *Handler) Setup() error {
 	assets := api.Group("/assets")
 	assets.GET("", ctrl.ListAssets)
 	assets.POST("", ctrl.CreateAsset)
+	assets.GET("/symbols", ctrl.GetUniqueSymbols)
 	assets.GET("/:id", ctrl.GetAsset)
+	assets.PUT("/:id", ctrl.UpdateAsset)
 	assets.DELETE("/:id", ctrl.DeleteAsset)
-
-	transactions := api.Group("/transactions")
-	transactions.GET("", ctrl.ListTransactions)
-	transactions.POST("", ctrl.CreateTransaction)
-	transactions.GET("/:id", ctrl.GetTransaction)
-	transactions.PUT("/:id", ctrl.UpdateTransaction)
-	transactions.DELETE("/:id", ctrl.DeleteTransaction)
 
 	exchanges := api.Group("/exchanges")
 	exchanges.GET("", ctrl.ListExchanges)
@@ -128,7 +123,7 @@ func (h *Handler) Setup() error {
 	prices.GET("", ctrl.ListPrices)
 	prices.GET("/currencies", ctrl.SearchCurrencies)
 	prices.GET("/:symbol", ctrl.GetPrice)
-	prices.GET("/history/:id", ctrl.GetPriceHistory)
+	prices.GET("/history/:symbol", ctrl.GetPriceHistory)
 
 	return nil
 }

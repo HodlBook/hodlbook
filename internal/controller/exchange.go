@@ -20,9 +20,9 @@ import (
 // @Produce json
 // @Param limit query int false "Limit"
 // @Param offset query int false "Offset"
-// @Param asset_id query int false "Asset ID (matches from or to)"
-// @Param from_asset_id query int false "From Asset ID"
-// @Param to_asset_id query int false "To Asset ID"
+// @Param symbol query string false "Symbol (matches from or to)"
+// @Param from_symbol query string false "From Symbol"
+// @Param to_symbol query string false "To Symbol"
 // @Param start_date query string false "Start date (YYYY-MM-DD)"
 // @Param end_date query string false "End date (YYYY-MM-DD)"
 // @Success 200 {object} repo.ExchangeListResult
@@ -41,20 +41,14 @@ func (c *Controller) ListExchanges(ctx *gin.Context) {
 			filter.Offset = offset
 		}
 	}
-	if assetIDStr := ctx.Query("asset_id"); assetIDStr != "" {
-		if assetID, err := strconv.ParseInt(assetIDStr, 10, 64); err == nil {
-			filter.AssetID = &assetID
-		}
+	if symbol := ctx.Query("symbol"); symbol != "" {
+		filter.Symbol = &symbol
 	}
-	if fromAssetIDStr := ctx.Query("from_asset_id"); fromAssetIDStr != "" {
-		if fromAssetID, err := strconv.ParseInt(fromAssetIDStr, 10, 64); err == nil {
-			filter.FromAssetID = &fromAssetID
-		}
+	if fromSymbol := ctx.Query("from_symbol"); fromSymbol != "" {
+		filter.FromSymbol = &fromSymbol
 	}
-	if toAssetIDStr := ctx.Query("to_asset_id"); toAssetIDStr != "" {
-		if toAssetID, err := strconv.ParseInt(toAssetIDStr, 10, 64); err == nil {
-			filter.ToAssetID = &toAssetID
-		}
+	if toSymbol := ctx.Query("to_symbol"); toSymbol != "" {
+		filter.ToSymbol = &toSymbol
 	}
 	if startDateStr := ctx.Query("start_date"); startDateStr != "" {
 		if startDate, err := time.Parse("2006-01-02", startDateStr); err == nil {
@@ -120,8 +114,8 @@ func (c *Controller) CreateExchange(ctx *gin.Context) {
 		return
 	}
 
-	if exchange.FromAssetID == exchange.ToAssetID {
-		badRequest(ctx, "from and to assets must be different")
+	if exchange.FromSymbol == exchange.ToSymbol {
+		badRequest(ctx, "from and to symbols must be different")
 		return
 	}
 
@@ -168,8 +162,8 @@ func (c *Controller) UpdateExchange(ctx *gin.Context) {
 		return
 	}
 
-	if exchange.FromAssetID == exchange.ToAssetID {
-		badRequest(ctx, "from and to assets must be different")
+	if exchange.FromSymbol == exchange.ToSymbol {
+		badRequest(ctx, "from and to symbols must be different")
 		return
 	}
 

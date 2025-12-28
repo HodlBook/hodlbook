@@ -55,23 +55,31 @@ type PriceRow struct {
 }
 
 func (h *PricesHandler) Table(c *gin.Context) {
-	assets, err := h.repo.GetAllAssets()
-	if err != nil {
-		c.String(http.StatusInternalServerError, "Failed to load assets")
-		return
-	}
-
+	symbols, _ := h.repo.GetUniqueSymbols()
 	holdings := h.calculateHoldings()
 
-	var rows []PriceRow
+	symbolNames := make(map[string]string)
+	assets, _ := h.repo.GetAllAssets()
 	for _, asset := range assets {
-		price, _ := h.priceCache.Get(asset.Symbol)
-		amount := holdings[asset.ID]
+		if _, exists := symbolNames[asset.Symbol]; !exists {
+			symbolNames[asset.Symbol] = asset.Name
+		}
+	}
+
+	var rows []PriceRow
+	for _, symbol := range symbols {
+		price, _ := h.priceCache.Get(symbol)
+		amount := holdings[symbol]
 		value := amount * price
 
+		name := symbolNames[symbol]
+		if name == "" {
+			name = symbol
+		}
+
 		rows = append(rows, PriceRow{
-			Symbol:   asset.Symbol,
-			Name:     asset.Name,
+			Symbol:   symbol,
+			Name:     name,
 			Price:    formatPrice(price),
 			PriceRaw: price,
 			Holdings: formatAmount(amount),
@@ -93,31 +101,25 @@ func (h *PricesHandler) Table(c *gin.Context) {
 	c.HTML(http.StatusOK, "prices_table.html", data)
 }
 
-func (h *PricesHandler) calculateHoldings() map[int64]float64 {
-	holdings := make(map[int64]float64)
+func (h *PricesHandler) calculateHoldings() map[string]float64 {
+	holdings := make(map[string]float64)
 
-	transactions, err := h.repo.GetAllTransactions()
-	if err != nil {
-		return holdings
-	}
+	assets, _ := h.repo.GetAllAssets()
 
-	for _, tx := range transactions {
-		switch tx.Type {
-		case "deposit", "buy":
-			holdings[tx.AssetID] += tx.Amount
-		case "withdraw", "sell":
-			holdings[tx.AssetID] -= tx.Amount
+	for _, asset := range assets {
+		switch asset.TransactionType {
+		case "deposit":
+			holdings[asset.Symbol] += asset.Amount
+		case "withdraw":
+			holdings[asset.Symbol] -= asset.Amount
 		}
 	}
 
-	exchanges, err := h.repo.GetAllExchanges()
-	if err != nil {
-		return holdings
-	}
+	exchanges, _ := h.repo.GetAllExchanges()
 
 	for _, ex := range exchanges {
-		holdings[ex.FromAssetID] -= ex.FromAmount
-		holdings[ex.ToAssetID] += ex.ToAmount
+		holdings[ex.FromSymbol] -= ex.FromAmount
+		holdings[ex.ToSymbol] += ex.ToAmount
 	}
 
 	return holdings

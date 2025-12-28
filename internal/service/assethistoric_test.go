@@ -19,21 +19,21 @@ import (
 var assetHistoricDiscardLogger = slog.New(slog.NewTextHandler(io.Discard, nil))
 
 type mockAssetHistoricRepo struct {
-	values    map[int64][]models.AssetHistoricValue
+	values    map[string][]models.AssetHistoricValue
 	mu        sync.Mutex
 	insertErr error
 }
 
 func newMockAssetHistoricRepo() *mockAssetHistoricRepo {
 	return &mockAssetHistoricRepo{
-		values: make(map[int64][]models.AssetHistoricValue),
+		values: make(map[string][]models.AssetHistoricValue),
 	}
 }
 
-func (m *mockAssetHistoricRepo) SelectAllByAsset(assetID int64) ([]models.AssetHistoricValue, error) {
+func (m *mockAssetHistoricRepo) SelectAllBySymbol(symbol string) ([]models.AssetHistoricValue, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.values[assetID], nil
+	return m.values[symbol], nil
 }
 
 func (m *mockAssetHistoricRepo) Insert(value *models.AssetHistoricValue) error {
@@ -42,14 +42,14 @@ func (m *mockAssetHistoricRepo) Insert(value *models.AssetHistoricValue) error {
 	}
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	m.values[value.AssetID] = append(m.values[value.AssetID], *value)
+	m.values[value.Symbol] = append(m.values[value.Symbol], *value)
 	return nil
 }
 
-func (m *mockAssetHistoricRepo) GetValues(assetID int64) []models.AssetHistoricValue {
+func (m *mockAssetHistoricRepo) GetValues(symbol string) []models.AssetHistoricValue {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	return m.values[assetID]
+	return m.values[symbol]
 }
 
 func TestAssetHistoricService_InvalidConfig(t *testing.T) {
@@ -149,9 +149,9 @@ func TestAssetHistoricService_HandleAssetCreated(t *testing.T) {
 	err = svc.handleAssetCreated(data)
 	require.NoError(t, err)
 
-	values := repo.GetValues(1)
+	values := repo.GetValues("BTC")
 	assert.Len(t, values, 1)
-	assert.Equal(t, int64(1), values[0].AssetID)
+	assert.Equal(t, "BTC", values[0].Symbol)
 	assert.Greater(t, values[0].Value, float64(0))
 	assert.False(t, values[0].Timestamp.IsZero())
 }
@@ -162,8 +162,8 @@ func TestAssetHistoricService_HandleAssetCreatedSkipsExisting(t *testing.T) {
 
 	fetcher := pricesPkg.NewPriceService()
 	repo := newMockAssetHistoricRepo()
-	repo.values[1] = []models.AssetHistoricValue{
-		{AssetID: 1, Value: 50000, Timestamp: time.Now()},
+	repo.values["BTC"] = []models.AssetHistoricValue{
+		{Symbol: "BTC", Value: 50000, Timestamp: time.Now()},
 	}
 	ch := make(chan []byte, 10)
 
@@ -187,7 +187,7 @@ func TestAssetHistoricService_HandleAssetCreatedSkipsExisting(t *testing.T) {
 	err = svc.handleAssetCreated(data)
 	require.NoError(t, err)
 
-	values := repo.GetValues(1)
+	values := repo.GetValues("BTC")
 	assert.Len(t, values, 1)
 }
 
@@ -264,7 +264,6 @@ func TestAssetHistoricService_PublishAndHandle(t *testing.T) {
 	err = svc.Publisher().Publish(data)
 	require.NoError(t, err)
 
-	// Wait for async processing with timeout
 	timeout := time.After(5 * time.Second)
 	ticker := time.NewTicker(50 * time.Millisecond)
 	defer ticker.Stop()
@@ -274,9 +273,9 @@ func TestAssetHistoricService_PublishAndHandle(t *testing.T) {
 		case <-timeout:
 			t.Fatal("timed out waiting for asset historic value to be inserted")
 		case <-ticker.C:
-			values := repo.GetValues(2)
+			values := repo.GetValues("ETH")
 			if len(values) > 0 {
-				assert.Equal(t, int64(2), values[0].AssetID)
+				assert.Equal(t, "ETH", values[0].Symbol)
 				assert.Greater(t, values[0].Value, float64(0))
 				return
 			}
