@@ -812,6 +812,12 @@ body {
     border-bottom: 1px solid var(--border-color);
 }
 
+.modal-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
 .modal-title {
     font-size: 18px;
     font-weight: 600;
@@ -1225,7 +1231,205 @@ body {
     padding: 20px;
 }
 
+/* Exchange Section */
+.exchange-section {
+    background-color: var(--bg-tertiary);
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 8px;
+}
+
+.exchange-section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.usd-hint {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+/* Input with inline percent buttons */
+.input-with-percent {
+    display: flex;
+    gap: 8px;
+    align-items: stretch;
+}
+
+.input-with-percent .form-control {
+    flex: 1;
+}
+
+.percent-buttons-inline {
+    display: flex;
+    gap: 4px;
+}
+
+.pct-btn {
+    padding: 6px 8px;
+    font-size: 11px;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    border-radius: 4px;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.pct-btn:hover {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+    background-color: rgba(247, 147, 26, 0.1);
+}
+
+.pct-btn.active {
+    border-color: var(--accent-primary);
+    color: #000;
+    background-color: var(--accent-primary);
+}
+
+/* Label with hint */
+.label-with-hint {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 6px;
+}
+
+.label-with-hint label {
+    margin-bottom: 0;
+}
+
+.label-hint {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: normal;
+}
+
+/* Form hint */
+.form-hint {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.form-hint.text-right {
+    text-align: right;
+}
+
+.form-hint-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+    min-height: 20px;
+}
+
+.form-hint-row .form-hint {
+    margin-top: 0;
+}
+
+.recalc-buttons {
+    display: flex;
+    gap: 4px;
+}
+
+.recalc-btn {
+    padding: 2px 8px;
+    font-size: 11px;
+    background: transparent;
+    border: 1px solid var(--accent-primary);
+    border-radius: 4px;
+    color: var(--accent-primary);
+    cursor: pointer;
+    transition: all var(--transition);
+}
+
+.recalc-btn:hover {
+    background-color: var(--accent-primary);
+    color: #000;
+}
+
+/* Exchange arrow with rate */
+.exchange-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 8px 0;
+    color: var(--text-muted);
+}
+
+.exchange-rate {
+    font-size: 12px;
+    color: var(--text-secondary);
+    background-color: var(--bg-tertiary);
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Price unit label */
+.price-unit {
+    font-size: 11px;
+    color: var(--text-muted);
+    font-weight: normal;
+}
+
 /* Responsive */
+/* Asset Search Dropdown */
+.asset-search-container {
+    position: relative;
+}
+
+.asset-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    max-height: 240px;
+    overflow-y: auto;
+    background-color: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    margin-top: 4px;
+    z-index: 100;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.asset-dropdown-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: background-color var(--transition);
+}
+
+.asset-dropdown-item:hover,
+.asset-dropdown-item.active {
+    background-color: var(--bg-tertiary);
+}
+
+.asset-dropdown-item .asset-symbol {
+    font-weight: 600;
+    color: var(--accent-primary);
+}
+
+.asset-dropdown-item .asset-price {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.asset-dropdown-loading {
+    padding: 16px;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 13px;
+}
+
 @media (max-width: 768px) {
     .sidebar {
         transform: translateX(-100%);
@@ -1261,5 +1465,13 @@ body {
 
     .prices-cards {
         grid-template-columns: 1fr;
+    }
+
+    .input-with-percent {
+        flex-direction: column;
+    }
+
+    .percent-buttons-inline {
+        justify-content: flex-start;
     }
 }

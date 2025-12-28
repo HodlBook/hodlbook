@@ -4,6 +4,7 @@ import (
 	"html/template"
 	"io"
 	"path/filepath"
+	"strconv"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -65,6 +66,26 @@ func formatCurrency(value float64, currency string) string {
 		return "-" + symbol + formatNumber(-value)
 	}
 	return symbol + formatNumber(value)
+}
+
+func formatPrice(value float64) string {
+	if value >= 1 {
+		return "$" + formatFloat(value)
+	}
+	if value == 0 {
+		return "$0"
+	}
+	return "$" + strconv.FormatFloat(value, 'f', -1, 64)
+}
+
+func formatExchangeRate(value float64) string {
+	if value >= 1 {
+		return formatFloat(value)
+	}
+	if value == 0 {
+		return "0"
+	}
+	return strconv.FormatFloat(value, 'f', -1, 64)
 }
 
 func formatNumber(value float64) string {

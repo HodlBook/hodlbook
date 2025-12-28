@@ -1,6 +1,8 @@
 package handler
 
 import (
+	"encoding/json"
+	"html/template"
 	"net/http"
 	"strconv"
 	"time"
@@ -27,20 +29,48 @@ func NewExchangesHandler(renderer *Renderer, repository *repo.Repository, priceC
 }
 
 type ExchangesPageData struct {
-	Title      string
-	PageTitle  string
-	ActivePage string
-	Assets     []models.Asset
+	Title           string
+	PageTitle       string
+	ActivePage      string
+	Assets          []models.Asset
+	AssetsWithHolds []AssetWithHolding
+	HoldingsJSON    template.JS
+	PricesJSON      template.JS
+}
+
+type AssetWithHolding struct {
+	ID      int64
+	Symbol  string
+	Name    string
+	Holding float64
 }
 
 func (h *ExchangesHandler) Index(c *gin.Context) {
 	assets, _ := h.repo.GetAllAssets()
+	holdings := h.calculateHoldings()
+	prices := h.getPrices(assets)
+
+	var assetsWithHolds []AssetWithHolding
+	for _, asset := range assets {
+		assetsWithHolds = append(assetsWithHolds, AssetWithHolding{
+			ID:      asset.ID,
+			Symbol:  asset.Symbol,
+			Name:    asset.Name,
+			Holding: holdings[asset.ID],
+		})
+	}
+
+	holdingsJSON, _ := json.Marshal(holdings)
+	pricesJSON, _ := json.Marshal(prices)
 
 	data := ExchangesPageData{
-		Title:      "Exchanges",
-		PageTitle:  "Exchanges",
-		ActivePage: "exchanges",
-		Assets:     assets,
+		Title:           "Exchanges",
+		PageTitle:       "Exchanges",
+		ActivePage:      "exchanges",
+		Assets:          assets,
+		AssetsWithHolds: assetsWithHolds,
+		HoldingsJSON:    template.JS(holdingsJSON),
+		PricesJSON:      template.JS(pricesJSON),
 	}
 	h.renderer.HTML(c, http.StatusOK, "exchanges", data)
 }
@@ -147,9 +177,12 @@ func (h *ExchangesHandler) Table(c *gin.Context) {
 
 	var rows []ExchangeRow
 	for _, ex := range exchanges {
-		rate := 0.0
-		if ex.FromAmount > 0 {
-			rate = ex.ToAmount / ex.FromAmount
+		var rateStr string
+		if ex.FromAmount > 0 && ex.ToAmount > 0 {
+			fromSymbol := assetMap[ex.FromAssetID]
+			toSymbol := assetMap[ex.ToAssetID]
+			rate := ex.FromAmount / ex.ToAmount
+			rateStr = "1 " + toSymbol + " = " + formatExchangeRate(rate) + " " + fromSymbol
 		}
 
 		rows = append(rows, ExchangeRow{
@@ -165,7 +198,7 @@ func (h *ExchangesHandler) Table(c *gin.Context) {
 			Fee:           formatAmount(ex.Fee),
 			FeeRaw:        ex.Fee,
 			FeeCurrency:   ex.FeeCurrency,
-			Rate:          formatAmount(rate),
+			Rate:          rateStr,
 			Timestamp:     ex.Timestamp.Format("Jan 02, 2006 15:04"),
 			TimestampRaw:  ex.Timestamp.Format("2006-01-02T15:04"),
 			Notes:         ex.Notes,
@@ -188,7 +221,8 @@ func (h *ExchangesHandler) Table(c *gin.Context) {
 type CreateExchangeRequest struct {
 	FromAssetID int64   `form:"from_asset_id" binding:"required"`
 	FromAmount  float64 `form:"from_amount" binding:"required"`
-	ToAssetID   int64   `form:"to_asset_id" binding:"required"`
+	ToAssetID   int64   `form:"to_asset_id"`
+	ToSymbol    string  `form:"to_symbol"`
 	ToAmount    float64 `form:"to_amount" binding:"required"`
 	Fee         float64 `form:"fee"`
 	FeeCurrency string  `form:"fee_currency"`
@@ -204,7 +238,32 @@ func (h *ExchangesHandler) Create(c *gin.Context) {
 		return
 	}
 
-	if req.FromAssetID == req.ToAssetID {
+	toAssetID := req.ToAssetID
+	if toAssetID == 0 && req.ToSymbol != "" {
+		asset, err := h.repo.GetAssetBySymbol(req.ToSymbol)
+		if err != nil {
+			newAsset := &models.Asset{
+				Symbol: req.ToSymbol,
+				Name:   req.ToSymbol,
+			}
+			if err := h.repo.CreateAsset(newAsset); err != nil {
+				c.Header("HX-Trigger", `{"show-toast": {"message": "Failed to create asset", "type": "error"}}`)
+				h.Table(c)
+				return
+			}
+			toAssetID = newAsset.ID
+		} else {
+			toAssetID = asset.ID
+		}
+	}
+
+	if toAssetID == 0 {
+		c.Header("HX-Trigger", `{"show-toast": {"message": "To asset is required", "type": "error"}}`)
+		h.Table(c)
+		return
+	}
+
+	if req.FromAssetID == toAssetID {
 		c.Header("HX-Trigger", `{"show-toast": {"message": "From and To assets must be different", "type": "error"}}`)
 		h.Table(c)
 		return
@@ -220,7 +279,7 @@ func (h *ExchangesHandler) Create(c *gin.Context) {
 	exchange := &models.Exchange{
 		FromAssetID: req.FromAssetID,
 		FromAmount:  req.FromAmount,
-		ToAssetID:   req.ToAssetID,
+		ToAssetID:   toAssetID,
 		ToAmount:    req.ToAmount,
 		Fee:         req.Fee,
 		FeeCurrency: req.FeeCurrency,
@@ -253,7 +312,32 @@ func (h *ExchangesHandler) Update(c *gin.Context) {
 		return
 	}
 
-	if req.FromAssetID == req.ToAssetID {
+	toAssetID := req.ToAssetID
+	if toAssetID == 0 && req.ToSymbol != "" {
+		asset, err := h.repo.GetAssetBySymbol(req.ToSymbol)
+		if err != nil {
+			newAsset := &models.Asset{
+				Symbol: req.ToSymbol,
+				Name:   req.ToSymbol,
+			}
+			if err := h.repo.CreateAsset(newAsset); err != nil {
+				c.Header("HX-Trigger", `{"show-toast": {"message": "Failed to create asset", "type": "error"}}`)
+				h.Table(c)
+				return
+			}
+			toAssetID = newAsset.ID
+		} else {
+			toAssetID = asset.ID
+		}
+	}
+
+	if toAssetID == 0 {
+		c.Header("HX-Trigger", `{"show-toast": {"message": "To asset is required", "type": "error"}}`)
+		h.Table(c)
+		return
+	}
+
+	if req.FromAssetID == toAssetID {
 		c.Header("HX-Trigger", `{"show-toast": {"message": "From and To assets must be different", "type": "error"}}`)
 		h.Table(c)
 		return
@@ -275,7 +359,7 @@ func (h *ExchangesHandler) Update(c *gin.Context) {
 
 	exchange.FromAssetID = req.FromAssetID
 	exchange.FromAmount = req.FromAmount
-	exchange.ToAssetID = req.ToAssetID
+	exchange.ToAssetID = toAssetID
 	exchange.ToAmount = req.ToAmount
 	exchange.Fee = req.Fee
 	exchange.FeeCurrency = req.FeeCurrency
@@ -307,4 +391,43 @@ func (h *ExchangesHandler) Delete(c *gin.Context) {
 	}
 
 	h.Table(c)
+}
+
+func (h *ExchangesHandler) calculateHoldings() map[int64]float64 {
+	holdings := make(map[int64]float64)
+
+	transactions, err := h.repo.GetAllTransactions()
+	if err != nil {
+		return holdings
+	}
+
+	for _, tx := range transactions {
+		switch tx.Type {
+		case "deposit", "buy":
+			holdings[tx.AssetID] += tx.Amount
+		case "withdraw", "sell":
+			holdings[tx.AssetID] -= tx.Amount
+		}
+	}
+
+	exchanges, err := h.repo.GetAllExchanges()
+	if err != nil {
+		return holdings
+	}
+
+	for _, ex := range exchanges {
+		holdings[ex.FromAssetID] -= ex.FromAmount
+		holdings[ex.ToAssetID] += ex.ToAmount
+	}
+
+	return holdings
+}
+
+func (h *ExchangesHandler) getPrices(assets []models.Asset) map[int64]float64 {
+	prices := make(map[int64]float64)
+	for _, asset := range assets {
+		price, _ := h.priceCache.Get(asset.Symbol)
+		prices[asset.ID] = price
+	}
+	return prices
 }

@@ -156,10 +156,17 @@ function toast() {
         show(detail) {
             const t = { message: detail.message, type: detail.type || 'info', visible: true };
             this.toasts.push(t);
-            setTimeout(() => { t.visible = false; }, 4000);
+            setTimeout(() => {
+                t.visible = false;
+                setTimeout(() => {
+                    const idx = this.toasts.indexOf(t);
+                    if (idx > -1) this.toasts.splice(idx, 1);
+                }, 300);
+            }, 3000);
         },
         dismiss(index) {
             this.toasts[index].visible = false;
+            setTimeout(() => { this.toasts.splice(index, 1); }, 300);
         }
     }
 }

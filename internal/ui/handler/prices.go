@@ -72,7 +72,7 @@ func (h *PricesHandler) Table(c *gin.Context) {
 		rows = append(rows, PriceRow{
 			Symbol:   asset.Symbol,
 			Name:     asset.Name,
-			Price:    formatCurrency(price, "USD"),
+			Price:    formatPrice(price),
 			PriceRaw: price,
 			Holdings: formatAmount(amount),
 			Value:    formatCurrency(value, "USD"),

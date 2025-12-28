@@ -126,6 +126,7 @@ func (h *Handler) Setup() error {
 		prices.GET("/stream", controller.SSEPrices(h.priceCh))
 	}
 	prices.GET("", ctrl.ListPrices)
+	prices.GET("/currencies", ctrl.SearchCurrencies)
 	prices.GET("/:symbol", ctrl.GetPrice)
 	prices.GET("/history/:id", ctrl.GetPriceHistory)
 

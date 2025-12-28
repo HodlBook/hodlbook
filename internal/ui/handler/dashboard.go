@@ -81,7 +81,7 @@ func (h *DashboardHandler) Summary(c *gin.Context) {
 		if cost > 0 {
 			pnlPct = (pnl / cost) * 100
 		}
-		if pnlPct > bestPnLPct && cost > 0 {
+		if pnlPct > bestPnLPct && cost > 0 && symbol != "USD" {
 			bestPnLPct = pnlPct
 			bestSymbol = symbol
 		}
@@ -293,7 +293,7 @@ func (h *DashboardHandler) Holdings(c *gin.Context) {
 		items = append(items, HoldingItem{
 			Symbol:   symbol,
 			Amount:   formatAmount(amount),
-			Price:    formatCurrency(price, "USD"),
+			Price:    formatPrice(price),
 			Value:    formatCurrency(value, "USD"),
 			Change:   formatPercent(pnlPct),
 			Positive: pnl >= 0,

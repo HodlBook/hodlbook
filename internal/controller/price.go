@@ -3,6 +3,9 @@ package controller
 import (
 	"net/http"
 	"strconv"
+	"strings"
+
+	"hodlbook/pkg/integrations/prices"
 
 	"github.com/gin-gonic/gin"
 )
@@ -80,4 +83,47 @@ func (c *Controller) GetPriceHistory(ctx *gin.Context) {
 	}
 
 	ctx.JSON(http.StatusOK, history)
+}
+
+// SearchCurrencies godoc
+// @Summary Search available currencies from providers
+// @Description Get all available currencies from Binance, optionally filtered by search query
+// @Tags prices
+// @Produce json
+// @Param q query string false "Search query to filter currencies"
+// @Success 200 {array} object
+// @Failure 500 {object} map[string]string
+// @Router /api/prices/currencies [get]
+func (c *Controller) SearchCurrencies(ctx *gin.Context) {
+	query := strings.ToUpper(ctx.Query("q"))
+
+	fetcher := prices.NewPriceService()
+	allPrices, err := fetcher.FetchAll()
+	if err != nil {
+		internalError(ctx, "failed to fetch currencies")
+		return
+	}
+
+	type CurrencyResult struct {
+		Symbol string  `json:"symbol"`
+		Name   string  `json:"name"`
+		Price  float64 `json:"price"`
+	}
+
+	var results []CurrencyResult
+	for _, p := range allPrices {
+		if query == "" || strings.Contains(p.Asset.Symbol, query) {
+			results = append(results, CurrencyResult{
+				Symbol: p.Asset.Symbol,
+				Name:   p.Asset.Name,
+				Price:  p.Value,
+			})
+		}
+	}
+
+	if len(results) > 50 {
+		results = results[:50]
+	}
+
+	ctx.JSON(http.StatusOK, results)
 }

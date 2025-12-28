@@ -13,6 +13,7 @@ type Price struct {
 type PriceFetcher interface {
 	Fetch(price *Price) error
 	FetchMany(pairs ...*Price) error
+	FetchAll() ([]Price, error)
 }
 
 var (

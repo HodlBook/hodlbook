@@ -121,15 +121,26 @@ func (b *PriceFetcher) FetchAll() ([]prices.Price, error) {
 	}
 
 	pricesList := make([]prices.Price, 0)
+	seen := make(map[string]bool)
 	for _, result := range results {
-		if strings.HasSuffix(result.Symbol, "USD") {
-			priceValue, err := strconv.ParseFloat(result.Price, 64)
-			if err == nil {
-				pricesList = append(pricesList, prices.Price{
-					Asset: prices.Asset{Name: result.Symbol[:len(result.Symbol)-3], Symbol: result.Symbol[:len(result.Symbol)-3]},
-					Value: priceValue,
-				})
-			}
+		var symbol string
+		if strings.HasSuffix(result.Symbol, "USDT") {
+			symbol = result.Symbol[:len(result.Symbol)-4]
+		} else if strings.HasSuffix(result.Symbol, "USD") {
+			symbol = result.Symbol[:len(result.Symbol)-3]
+		} else {
+			continue
+		}
+		if seen[symbol] {
+			continue
+		}
+		seen[symbol] = true
+		priceValue, err := strconv.ParseFloat(result.Price, 64)
+		if err == nil {
+			pricesList = append(pricesList, prices.Price{
+				Asset: prices.Asset{Name: symbol, Symbol: symbol},
+				Value: priceValue,
+			})
 		}
 	}
 

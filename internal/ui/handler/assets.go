@@ -77,7 +77,7 @@ func (h *AssetsHandler) Table(c *gin.Context) {
 			ID:       asset.ID,
 			Symbol:   asset.Symbol,
 			Name:     asset.Name,
-			Price:    formatCurrency(price, "USD"),
+			Price:    formatPrice(price),
 			PriceRaw: price,
 			Holdings: formatAmount(amount),
 			Value:    formatCurrency(value, "USD"),

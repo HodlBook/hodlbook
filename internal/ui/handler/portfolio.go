@@ -234,7 +234,7 @@ func (h *PortfolioHandler) Holdings(c *gin.Context) {
 			Symbol:     symbol,
 			Amount:     formatAmount(amount),
 			AmountRaw:  amount,
-			Price:      formatCurrency(price, "USD"),
+			Price:      formatPrice(price),
 			PriceRaw:   price,
 			Value:      formatCurrency(value, "USD"),
 			ValueRaw:   value,
