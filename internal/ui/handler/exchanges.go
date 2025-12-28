@@ -335,3 +335,8 @@ func (h *ExchangesHandler) getAllPrices() map[string]float64 {
 	}
 	return prices
 }
+
+func (h *ExchangesHandler) GetHoldings(c *gin.Context) {
+	holdings := h.calculateHoldings()
+	c.JSON(http.StatusOK, holdings)
+}

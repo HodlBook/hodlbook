@@ -125,6 +125,7 @@ func (h *WebHandler) Setup() error {
 	h.engine.POST("/partials/exchanges/create", exchanges.Create)
 	h.engine.POST("/partials/exchanges/update/:id", exchanges.Update)
 	h.engine.DELETE("/partials/exchanges/delete/:id", exchanges.Delete)
+	h.engine.GET("/api/ui/holdings", exchanges.GetHoldings)
 
 	h.engine.GET("/prices", pricesHandler.Index)
 	h.engine.GET("/partials/prices/table", pricesHandler.Table)

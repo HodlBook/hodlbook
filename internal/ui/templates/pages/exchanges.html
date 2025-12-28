@@ -86,7 +86,7 @@
                       :hx-post="isEdit ? '/partials/exchanges/update/' + exchangeId : '/partials/exchanges/create'"
                       hx-target="#exchanges-table-container"
                       hx-swap="innerHTML"
-                      @htmx:after-request="if(event.detail.successful) { open = false; $dispatch('show-toast', {message: isEdit ? 'Exchange updated' : 'Exchange added', type: 'success'}) }">
+                      @htmx:after-request="if(event.detail.successful) { open = false; refreshHoldings(); $dispatch('show-toast', {message: isEdit ? 'Exchange updated' : 'Exchange added', type: 'success'}) }">
                     <div class="modal-body">
                         <div class="exchange-section">
                             <div class="exchange-section-header">
@@ -119,7 +119,8 @@
                                 </div>
                                 <small class="form-hint">
                                     <span x-show="fromSymbol && holdings[fromSymbol]" x-text="'Available: ' + formatNumber(holdings[fromSymbol] || 0)"></span>
-                                    <span x-show="fromSymbol && prices[fromSymbol]" x-text="' | Price: $' + formatUsd(prices[fromSymbol] || 0)"></span>
+                                    <span x-show="fromSymbol && availableUsd > 0" x-text="' (~$' + formatUsd(availableUsd) + ')'"></span>
+                                    <span x-show="fromSymbol && fromSymbolUsdPrice > 0" x-text="' | Price: $' + formatUsd(fromSymbolUsdPrice)"></span>
                                 </small>
                             </div>
                             <div class="form-group">
@@ -256,6 +257,12 @@ async function fetchExchangeCryptos() {
     }
 }
 
+function getCryptoPrice(symbol) {
+    if (!cachedExchangeCryptos || !symbol) return 0;
+    const crypto = cachedExchangeCryptos.find(c => c.symbol === symbol);
+    return crypto ? crypto.price : 0;
+}
+
 function cryptoSearchFrom() {
     return {
         search: '',
@@ -264,10 +271,13 @@ function cryptoSearchFrom() {
         showDropdown: false,
         highlightedIndex: 0,
         init() {
-            const holdings = this.$data.holdings;
-            this.assets = Object.keys(holdings)
-                .filter(symbol => holdings[symbol] > 0)
-                .map(symbol => ({ symbol, amount: holdings[symbol] }))
+            this.refreshAssets();
+            window.addEventListener('holdings-updated', () => this.refreshAssets());
+        },
+        refreshAssets() {
+            this.assets = Object.keys(holdingsData)
+                .filter(symbol => holdingsData[symbol] > 0)
+                .map(symbol => ({ symbol, amount: holdingsData[symbol] }))
                 .sort((a, b) => a.symbol.localeCompare(b.symbol));
         },
         onFocus() {
@@ -293,7 +303,16 @@ function cryptoSearchFrom() {
         selectAsset(asset) {
             this.search = asset.symbol;
             this.$data.fromSymbol = asset.symbol;
+            this.$data.fromSymbolUsdPrice = getCryptoPrice(asset.symbol);
+            this.recalcToPrice();
             this.showDropdown = false;
+        },
+        recalcToPrice() {
+            const toUsdPrice = this.$data.toSymbolUsdPrice || 0;
+            const fromUsdPrice = this.$data.fromSymbolUsdPrice || 0;
+            if (toUsdPrice > 0 && fromUsdPrice > 0) {
+                this.$data.toPrice = (toUsdPrice / fromUsdPrice).toFixed(8).replace(/\.?0+$/, '');
+            }
         },
         highlightNext() {
             if (this.highlightedIndex < this.filteredAssets.length - 1) {
@@ -352,12 +371,10 @@ function cryptoSearchTo() {
         },
         calcPriceInFromAsset(toUsdPrice) {
             if (!toUsdPrice || toUsdPrice <= 0) return;
-            const fromSymbol = this.$data.fromSymbol;
-            const pricesObj = Alpine.raw(this.$data.prices);
-            const fromUsdPrice = pricesObj[fromSymbol] || 0;
+            const fromUsdPrice = this.$data.fromSymbolUsdPrice || 0;
             if (fromUsdPrice > 0) {
                 const priceInFromAsset = toUsdPrice / fromUsdPrice;
-                this.$data.toPrice = priceInFromAsset;
+                this.$data.toPrice = priceInFromAsset.toFixed(8).replace(/\.?0+$/, '');
             }
         },
         onSymbolSelected(symbol) {
@@ -385,10 +402,19 @@ function cryptoSearchTo() {
     }
 }
 
-function exchangeModal() {
-    const holdings = {{.HoldingsJSON}};
-    const prices = {{.PricesJSON}};
+let holdingsData = {{.HoldingsJSON}};
 
+async function refreshHoldings() {
+    try {
+        const response = await fetch('/api/ui/holdings');
+        holdingsData = await response.json();
+        window.dispatchEvent(new CustomEvent('holdings-updated'));
+    } catch (e) {
+        console.error('Failed to refresh holdings:', e);
+    }
+}
+
+function exchangeModal() {
     return {
         open: false,
         isEdit: false,
@@ -399,17 +425,28 @@ function exchangeModal() {
         toAmount: '',
         toPrice: '',
         toSymbolUsdPrice: 0,
+        fromSymbolUsdPrice: 0,
         fee: '',
         feeCurrency: '',
         timestamp: '',
         notes: '',
-        holdings: holdings,
-        prices: prices,
+        holdings: holdingsData,
+
+        async init() {
+            await fetchExchangeCryptos();
+            window.addEventListener('holdings-updated', () => {
+                this.holdings = holdingsData;
+            });
+        },
 
         get fromUsd() {
             const amount = parseFloat(this.fromAmount) || 0;
-            const price = prices[this.fromSymbol] || 0;
-            return amount * price;
+            return amount * this.fromSymbolUsdPrice;
+        },
+
+        get availableUsd() {
+            const available = this.holdings[this.fromSymbol] || 0;
+            return available * this.fromSymbolUsdPrice;
         },
 
         get toUsd() {
@@ -420,10 +457,9 @@ function exchangeModal() {
 
         get toValueInFrom() {
             const toAmt = parseFloat(this.toAmount) || 0;
-            const fromPrice = prices[this.fromSymbol] || 0;
             const toPrice = parseFloat(this.toPrice) || 0;
-            if (toAmt > 0 && fromPrice > 0 && toPrice > 0) {
-                return (toAmt * toPrice) / fromPrice;
+            if (toAmt > 0 && toPrice > 0) {
+                return toAmt * toPrice;
             }
             return 0;
         },
@@ -439,24 +475,21 @@ function exchangeModal() {
 
         get canCalcToAmount() {
             const fromAmt = parseFloat(this.fromAmount) || 0;
-            const fromPrice = prices[this.fromSymbol] || 0;
             const toPrice = parseFloat(this.toPrice) || 0;
-            return fromAmt > 0 && fromPrice > 0 && toPrice > 0 && this.toSymbol;
+            return fromAmt > 0 && toPrice > 0 && this.toSymbol;
         },
 
         get canCalcToPrice() {
             const fromAmt = parseFloat(this.fromAmount) || 0;
             const toAmt = parseFloat(this.toAmount) || 0;
-            const fromPrice = prices[this.fromSymbol] || 0;
-            return fromAmt > 0 && toAmt > 0 && fromPrice > 0 && this.toSymbol;
+            return fromAmt > 0 && toAmt > 0 && this.toSymbol;
         },
 
         get estimatedToAmount() {
             const fromAmt = parseFloat(this.fromAmount) || 0;
-            const fromPrice = prices[this.fromSymbol] || 0;
             const toPrice = parseFloat(this.toPrice) || 0;
-            if (fromAmt > 0 && fromPrice > 0 && toPrice > 0) {
-                return (fromAmt * fromPrice) / toPrice;
+            if (fromAmt > 0 && toPrice > 0) {
+                return fromAmt / toPrice;
             }
             return 0;
         },
@@ -464,9 +497,8 @@ function exchangeModal() {
         get estimatedToPrice() {
             const fromAmt = parseFloat(this.fromAmount) || 0;
             const toAmt = parseFloat(this.toAmount) || 0;
-            const fromPrice = prices[this.fromSymbol] || 0;
-            if (fromAmt > 0 && toAmt > 0 && fromPrice > 0) {
-                return (fromAmt * fromPrice) / toAmt;
+            if (fromAmt > 0 && toAmt > 0) {
+                return fromAmt / toAmt;
             }
             return 0;
         },
@@ -510,6 +542,7 @@ function exchangeModal() {
             this.toAmount = '';
             this.toPrice = '';
             this.toSymbolUsdPrice = 0;
+            this.fromSymbolUsdPrice = 0;
             this.fee = '';
             this.feeCurrency = '';
             this.timestamp = new Date().toISOString().slice(0, 16);
@@ -521,11 +554,12 @@ function exchangeModal() {
             this.isEdit = true;
             this.exchangeId = detail.id;
             this.fromSymbol = detail.from_symbol;
+            this.fromSymbolUsdPrice = getCryptoPrice(detail.from_symbol);
             this.fromAmount = detail.from_amount;
             this.toSymbol = detail.to_symbol;
+            this.toSymbolUsdPrice = getCryptoPrice(detail.to_symbol);
             this.toAmount = detail.to_amount;
             this.toPrice = '';
-            this.toSymbolUsdPrice = 0;
             this.fee = detail.fee || '';
             this.feeCurrency = detail.fee_currency || '';
             this.timestamp = detail.timestamp;
@@ -549,6 +583,7 @@ function deleteExchangeModal() {
                 swap: 'innerHTML'
             }).then(() => {
                 this.open = false;
+                refreshHoldings();
                 window.dispatchEvent(new CustomEvent('show-toast', {
                     detail: { message: 'Exchange deleted', type: 'success' }
                 }));
