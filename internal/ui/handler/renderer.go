@@ -90,10 +90,10 @@ func formatExchangeRate(value float64) string {
 
 func formatNumber(value float64) string {
 	if value >= 1000000 {
-		return formatFloat(value/1000000) + "M"
+		return intToStr(int(value/1000)) + "K"
 	}
 	if value >= 1000 {
-		return formatFloat(value/1000) + "K"
+		return intToStr(int(value))
 	}
 	return formatFloat(value)
 }

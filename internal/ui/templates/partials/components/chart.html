@@ -119,7 +119,11 @@ function lineChart(data, label) {
                         y: {
                             grid: { color: 'rgba(255,255,255,0.1)' },
                             ticks: {
-                                callback: v => '$' + v.toLocaleString()
+                                callback: function(v) {
+                                    if (v >= 1000000) return '$' + Math.round(v/1000) + 'K';
+                                    if (v >= 1000) return '$' + Math.round(v);
+                                    return '$' + v.toFixed(2);
+                                }
                             }
                         }
                     },

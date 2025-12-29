@@ -92,9 +92,9 @@ function createLineChart(ctx, labels, values, maxTicksLimit) {
                     ticks: {
                         color: '#8892a0',
                         callback: function(v) {
-                            if (v >= 1000000) return '$' + (v/1000000).toFixed(1) + 'M';
-                            if (v >= 1000) return '$' + (v/1000).toFixed(1) + 'K';
-                            return '$' + v.toFixed(0);
+                            if (v >= 1000000) return '$' + Math.round(v/1000) + 'K';
+                            if (v >= 1000) return '$' + Math.round(v);
+                            return '$' + v.toFixed(2);
                         }
                     }
                 }
