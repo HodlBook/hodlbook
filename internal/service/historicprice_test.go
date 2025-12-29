@@ -17,14 +17,32 @@ import (
 var historicDiscardLogger = slog.New(slog.NewTextHandler(io.Discard, nil))
 
 type mockHistoricRepo struct {
-	symbols   []string
-	values    []models.AssetHistoricValue
-	mu        sync.Mutex
-	insertErr error
+	symbols         []string
+	historicSymbols []string
+	values          []models.AssetHistoricValue
+	mu              sync.Mutex
+	insertErr       error
 }
 
 func (m *mockHistoricRepo) GetUniqueSymbols() ([]string, error) {
 	return m.symbols, nil
+}
+
+func (m *mockHistoricRepo) GetHistoricSymbols() ([]string, error) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	if m.historicSymbols != nil {
+		return m.historicSymbols, nil
+	}
+	seen := make(map[string]struct{})
+	for _, v := range m.values {
+		seen[v.Symbol] = struct{}{}
+	}
+	result := make([]string, 0, len(seen))
+	for s := range seen {
+		result = append(result, s)
+	}
+	return result, nil
 }
 
 func (m *mockHistoricRepo) Insert(value *models.AssetHistoricValue) error {

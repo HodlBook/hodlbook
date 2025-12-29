@@ -137,9 +137,27 @@ func (r *Repository) CountAssets() (int64, error) {
 }
 
 func (r *Repository) GetUniqueSymbols() ([]string, error) {
-	var symbols []string
-	if err := r.db.Model(&models.Asset{}).Distinct("symbol").Pluck("symbol", &symbols).Error; err != nil {
+	var assetSymbols []string
+	if err := r.db.Model(&models.Asset{}).Distinct("symbol").Pluck("symbol", &assetSymbols).Error; err != nil {
 		return nil, err
+	}
+
+	exchangeSymbols, err := r.GetUniqueExchangeSymbols()
+	if err != nil {
+		return nil, err
+	}
+
+	symbolSet := make(map[string]struct{})
+	for _, s := range assetSymbols {
+		symbolSet[s] = struct{}{}
+	}
+	for _, s := range exchangeSymbols {
+		symbolSet[s] = struct{}{}
+	}
+
+	symbols := make([]string, 0, len(symbolSet))
+	for s := range symbolSet {
+		symbols = append(symbols, s)
 	}
 	return symbols, nil
 }

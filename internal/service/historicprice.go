@@ -17,6 +17,7 @@ var ErrInvalidHistoricPriceConfig = errors.New("invalid historic price service c
 
 type HistoricValueRepository interface {
 	GetUniqueSymbols() ([]string, error)
+	GetHistoricSymbols() ([]string, error)
 	Insert(value *models.AssetHistoricValue) error
 }
 
@@ -85,6 +86,7 @@ func NewHistoricPriceService(opts ...HistoricPriceOption) (*HistoricPriceService
 		tickerScheduler.WithLogger(s.logger),
 		tickerScheduler.WithInterval(scheduler.IntervalDaily),
 		tickerScheduler.WithHandler(s.tick),
+		tickerScheduler.WithTargetHour(0), // midnight UTC
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create scheduler")
@@ -95,7 +97,73 @@ func NewHistoricPriceService(opts ...HistoricPriceOption) (*HistoricPriceService
 }
 
 func (s *HistoricPriceService) Start() error {
+	if err := s.addMissingSymbols(); err != nil {
+		s.logger.Error("failed to add missing symbols on startup", "error", err)
+	}
 	return s.scheduler.Start()
+}
+
+func (s *HistoricPriceService) addMissingSymbols() error {
+	allSymbols, err := s.repo.GetUniqueSymbols()
+	if err != nil {
+		return errors.Wrap(err, "failed to get all symbols")
+	}
+
+	historicSymbols, err := s.repo.GetHistoricSymbols()
+	if err != nil {
+		return errors.Wrap(err, "failed to get historic symbols")
+	}
+
+	historicSet := make(map[string]struct{}, len(historicSymbols))
+	for _, sym := range historicSymbols {
+		historicSet[sym] = struct{}{}
+	}
+
+	var missing []string
+	for _, sym := range allSymbols {
+		if _, exists := historicSet[sym]; !exists {
+			missing = append(missing, sym)
+		}
+	}
+
+	if len(missing) == 0 {
+		return nil
+	}
+
+	s.logger.Info("adding missing historic values", "symbols", missing)
+
+	pricePairs := make([]*prices.Price, len(missing))
+	for i, symbol := range missing {
+		pricePairs[i] = &prices.Price{
+			Asset: prices.Asset{
+				Symbol: symbol,
+				Name:   symbol,
+			},
+		}
+	}
+
+	if err := s.priceFetcher.FetchMany(pricePairs...); err != nil {
+		return errors.Wrap(err, "failed to fetch prices for missing symbols")
+	}
+
+	now := time.Now()
+	for i, symbol := range missing {
+		historicValue := &models.AssetHistoricValue{
+			Symbol:    symbol,
+			Value:     pricePairs[i].Value,
+			Timestamp: now,
+		}
+		if err := s.repo.Insert(historicValue); err != nil {
+			s.logger.Error("failed to insert historic value for missing symbol",
+				"symbol", symbol,
+				"error", err,
+			)
+			continue
+		}
+	}
+
+	s.logger.Info("added missing historic values", "count", len(missing))
+	return nil
 }
 
 func (s *HistoricPriceService) Stop() {

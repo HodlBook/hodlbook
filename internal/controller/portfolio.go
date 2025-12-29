@@ -417,7 +417,7 @@ func (c *Controller) PortfolioHistory(ctx *gin.Context) {
 					price = p
 				}
 			}
-			if price == 0 {
+			if price == 0 && c.priceCache != nil {
 				price, _ = c.priceCache.Get(symbol)
 			}
 			dailyValue += amount * price

@@ -13,3 +13,9 @@ func (r *Repository) SelectAllBySymbol(symbol string) ([]models.AssetHistoricVal
 	err := r.db.Where("symbol = ?", symbol).Order("timestamp DESC").Find(&values).Error
 	return values, err
 }
+
+func (r *Repository) GetHistoricSymbols() ([]string, error) {
+	var symbols []string
+	err := r.db.Model(&models.AssetHistoricValue{}).Distinct("symbol").Pluck("symbol", &symbols).Error
+	return symbols, err
+}
