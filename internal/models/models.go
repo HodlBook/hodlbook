@@ -3,46 +3,44 @@ package models
 import "time"
 
 type Asset struct {
-	ID        int64     `json:"id"         gorm:"primaryKey"`
-	Symbol    string    `json:"symbol"     gorm:"uniqueIndex"`
-	Name      string    `json:"name"`
-	Type      string    `json:"type"       gorm:"index"`
-	Decimals  int       `json:"decimals"   gorm:"default:8"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
+	ID              int64     `json:"id"               gorm:"primaryKey"`
+	Symbol          string    `json:"symbol"           gorm:"index"`
+	Name            string    `json:"name"`
+	Amount          float64   `json:"amount"`
+	TransactionType string    `json:"transaction_type" gorm:"index"`
+	Notes           string    `json:"notes"`
+	Timestamp       time.Time `json:"timestamp"        gorm:"index"`
+	CreatedAt       time.Time `json:"created_at"`
+	UpdatedAt       time.Time `json:"updated_at"`
 }
 
-type Transaction struct {
-	ID        int64     `json:"id"         gorm:"primaryKey"`
-	Type      string    `json:"type"       gorm:"index"`
-	AssetID   int64     `json:"asset_id"   gorm:"index"`
-	Amount    float64   `json:"amount"`
-	Notes     string    `json:"notes"`
+type AssetHistoricValue struct {
+	Symbol    string    `json:"symbol"     gorm:"index"`
+	Value     float64   `json:"value"`
 	Timestamp time.Time `json:"timestamp"  gorm:"index"`
 	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
 }
 
 type Exchange struct {
-	ID          int64     `json:"id"            gorm:"primaryKey"`
-	FromAssetID int64     `json:"from_asset_id" gorm:"index"`
-	ToAssetID   int64     `json:"to_asset_id"   gorm:"index"`
+	ID          int64     `json:"id"          gorm:"primaryKey"`
+	FromSymbol  string    `json:"from_symbol" gorm:"index"`
+	ToSymbol    string    `json:"to_symbol"   gorm:"index"`
 	FromAmount  float64   `json:"from_amount"`
 	ToAmount    float64   `json:"to_amount"`
 	Fee         float64   `json:"fee"`
 	FeeCurrency string    `json:"fee_currency"`
 	Notes       string    `json:"notes"`
-	Timestamp   time.Time `json:"timestamp"     gorm:"index"`
+	Timestamp   time.Time `json:"timestamp"   gorm:"index"`
 	CreatedAt   time.Time `json:"created_at"`
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
 type Price struct {
 	ID        int64     `json:"id"         gorm:"primaryKey"`
-	AssetID   int64     `json:"asset_id"   gorm:"index:idx_asset_currency_time"`
-	Currency  string    `json:"currency"   gorm:"index:idx_asset_currency_time"`
+	Symbol    string    `json:"symbol"     gorm:"index:idx_symbol_currency_time"`
+	Currency  string    `json:"currency"   gorm:"index:idx_symbol_currency_time"`
 	Price     float64   `json:"price"`
-	Timestamp time.Time `json:"timestamp"  gorm:"index:idx_asset_currency_time"`
+	Timestamp time.Time `json:"timestamp"  gorm:"index:idx_symbol_currency_time"`
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -56,8 +54,8 @@ func (Asset) TableName() string {
 	return "assets"
 }
 
-func (Transaction) TableName() string {
-	return "transactions"
+func (AssetHistoricValue) TableName() string {
+	return "asset_historic_values"
 }
 
 func (Exchange) TableName() string {

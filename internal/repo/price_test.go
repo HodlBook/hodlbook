@@ -14,7 +14,7 @@ func TestPriceRepository_CRUD(t *testing.T) {
 	require.NoError(t, err)
 
 	price := &models.Price{
-		AssetID:   1,
+		Symbol:    "BTC",
 		Currency:  "USD",
 		Price:     123.45,
 		Timestamp: time.Now(),
@@ -33,7 +33,7 @@ func TestPriceRepository_CRUD(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, 200.0, got.Price)
 
-	prices, err := repository.GetPricesByAssetAndCurrency(1, "USD")
+	prices, err := repository.GetPricesBySymbolAndCurrency("BTC", "USD")
 	require.NoError(t, err)
 	require.Len(t, prices, 1)
 

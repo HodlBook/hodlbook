@@ -2,18 +2,76 @@ package prices
 
 import (
 	"fmt"
-	"hodlbook/pkg/common/prices"
+	"sync"
+	"time"
+
 	"hodlbook/pkg/integrations/prices/binanceprices"
 	"hodlbook/pkg/integrations/prices/coingeckoprices"
+	"hodlbook/pkg/types/prices"
 )
 
 var (
 	_ prices.PriceFetcher = (*PriceService)(nil)
 )
 
+type cachedPrice struct {
+	value     float64
+	timestamp time.Time
+}
+
+// simple in-memory cache with 1m TTL
+type cache struct {
+	mu        sync.RWMutex
+	timestamp time.Time
+	prices    []prices.Price
+	bySymbol  map[string]cachedPrice
+}
+
+func (c *cache) Get() ([]prices.Price, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	if time.Since(c.timestamp) > time.Minute {
+		return nil, false
+	}
+	return c.prices, true
+}
+
+func (c *cache) Set(prices []prices.Price) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.timestamp = time.Now()
+	c.prices = prices
+	for _, p := range prices {
+		if c.bySymbol == nil {
+			c.bySymbol = make(map[string]cachedPrice)
+		}
+		c.bySymbol[p.Asset.Symbol] = cachedPrice{value: p.Value, timestamp: time.Now()}
+	}
+}
+
+func (c *cache) GetBySymbol(symbol string) (float64, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	p, ok := c.bySymbol[symbol]
+	if !ok || time.Since(p.timestamp) > time.Minute {
+		return 0, false
+	}
+	return p.value, true
+}
+
+func (c *cache) SetBySymbol(symbol string, value float64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.bySymbol == nil {
+		c.bySymbol = make(map[string]cachedPrice)
+	}
+	c.bySymbol[symbol] = cachedPrice{value: value, timestamp: time.Now()}
+}
+
 type PriceService struct {
 	binance   prices.PriceFetcher
 	coingecko prices.PriceFetcher
+	cache     cache
 }
 
 func NewPriceService() *PriceService {
@@ -24,39 +82,89 @@ func NewPriceService() *PriceService {
 }
 
 func (p *PriceService) Fetch(price *prices.Price) error {
-	// Try fetching from Binance first
+	if cached, ok := p.cache.GetBySymbol(price.Asset.Symbol); ok {
+		price.Value = cached
+		return nil
+	}
+
 	err := p.binance.Fetch(price)
 	if err == nil {
+		p.cache.SetBySymbol(price.Asset.Symbol, price.Value)
 		return nil
 	}
 	binanceErr := fmt.Errorf("binance error: %w", err)
 
-	// Fallback to CoinGecko if Binance fails
 	err = p.coingecko.Fetch(price)
 	if err == nil {
+		p.cache.SetBySymbol(price.Asset.Symbol, price.Value)
 		return nil
 	}
 	coingeckoErr := fmt.Errorf("coingecko error: %w", err)
 
-	// Merge both errors if both fail
-	return fmt.Errorf("%v; %v", binanceErr, coingeckoErr)
+	return fmt.Errorf("%w; %w", binanceErr, coingeckoErr)
 }
 
 func (p *PriceService) FetchMany(pairs ...*prices.Price) error {
-	// Try fetching from Binance first
-	err := p.binance.FetchMany(pairs...)
-	if err == nil {
-		return nil
+	allPrices, err := p.FetchAll()
+	if err != nil {
+		return err
 	}
-	binanceErr := fmt.Errorf("binance error: %w", err)
 
-	// Fallback to CoinGecko if Binance fails
-	err = p.coingecko.FetchMany(pairs...)
-	if err == nil {
-		return nil
+	priceMap := make(map[string]float64, len(allPrices))
+	for _, price := range allPrices {
+		priceMap[price.Asset.Symbol] = price.Value
 	}
-	coingeckoErr := fmt.Errorf("coingecko error: %w", err)
 
-	// Merge both errors if both fail
-	return fmt.Errorf("%v; %v", binanceErr, coingeckoErr)
+	for _, pair := range pairs {
+		if value, ok := priceMap[pair.Asset.Symbol]; ok {
+			pair.Value = value
+		}
+	}
+
+	return nil
+}
+
+func (p *PriceService) FetchAll() ([]prices.Price, error) {
+	if cached, ok := p.cache.Get(); ok {
+		return cached, nil
+	}
+
+	merged := make(map[string]prices.Price)
+
+	cgPrices, cgErr := p.coingecko.FetchAll()
+	if cgErr == nil {
+		for _, price := range cgPrices {
+			symbol := price.Asset.Symbol
+			merged[symbol] = price
+		}
+	}
+
+	binPrices, binErr := p.binance.FetchAll()
+	if binErr == nil {
+		for _, price := range binPrices {
+			symbol := price.Asset.Symbol
+			if existing, ok := merged[symbol]; ok {
+				// Keep CoinGecko name but use Binance price if CoinGecko had no price
+				if existing.Value == 0 && price.Value > 0 {
+					existing.Value = price.Value
+					merged[symbol] = existing
+				}
+			} else {
+				// Add Binance-only assets
+				merged[symbol] = price
+			}
+		}
+	}
+
+	if cgErr != nil && binErr != nil {
+		return nil, fmt.Errorf("coingecko: %w; binance: %w", cgErr, binErr)
+	}
+
+	pricesList := make([]prices.Price, 0, len(merged))
+	for _, price := range merged {
+		pricesList = append(pricesList, price)
+	}
+
+	p.cache.Set(pricesList)
+	return pricesList, nil
 }

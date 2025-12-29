@@ -24,10 +24,9 @@ type ControllerTestSuite struct {
 	router *gin.Engine
 	ctrl   *Controller
 
-	createdAsset       *models.Asset
-	createdAsset2      *models.Asset
-	createdTransaction *models.Transaction
-	createdExchange    *models.Exchange
+	createdAsset    *models.Asset
+	createdAsset2   *models.Asset
+	createdExchange *models.Exchange
 }
 
 func (s *ControllerTestSuite) SetupSuite() {
@@ -35,13 +34,13 @@ func (s *ControllerTestSuite) SetupSuite() {
 
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	s.Require().NoError(err)
-	s.Require().NoError(db.AutoMigrate(&models.Asset{}, &models.Transaction{}, &models.Exchange{}))
+	s.Require().NoError(db.AutoMigrate(&models.Asset{}, &models.Exchange{}, &models.AssetHistoricValue{}))
 	s.db = db
 
 	repository, err := repo.New(db)
 	s.Require().NoError(err)
 
-	ctrl, err := New(repository)
+	ctrl, err := New(WithRepository(repository))
 	s.Require().NoError(err)
 	s.ctrl = ctrl
 
@@ -55,19 +54,18 @@ func (s *ControllerTestSuite) SetupSuite() {
 	assets.PUT("/:id", ctrl.UpdateAsset)
 	assets.DELETE("/:id", ctrl.DeleteAsset)
 
-	transactions := api.Group("/transactions")
-	transactions.GET("", ctrl.ListTransactions)
-	transactions.POST("", ctrl.CreateTransaction)
-	transactions.GET("/:id", ctrl.GetTransaction)
-	transactions.PUT("/:id", ctrl.UpdateTransaction)
-	transactions.DELETE("/:id", ctrl.DeleteTransaction)
-
 	exchanges := api.Group("/exchanges")
 	exchanges.GET("", ctrl.ListExchanges)
 	exchanges.POST("", ctrl.CreateExchange)
 	exchanges.GET("/:id", ctrl.GetExchange)
 	exchanges.PUT("/:id", ctrl.UpdateExchange)
 	exchanges.DELETE("/:id", ctrl.DeleteExchange)
+
+	portfolio := api.Group("/portfolio")
+	portfolio.GET("/summary", ctrl.PortfolioSummary)
+	portfolio.GET("/allocation", ctrl.PortfolioAllocation)
+	portfolio.GET("/performance", ctrl.PortfolioPerformance)
+	portfolio.GET("/history", ctrl.PortfolioHistory)
 }
 
 // Asset Tests
@@ -79,17 +77,18 @@ func (s *ControllerTestSuite) Test01_Asset_ListEmpty() {
 
 	s.Equal(http.StatusOK, w.Code)
 
-	var assets []models.Asset
-	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &assets))
-	s.Empty(assets)
+	var result repo.AssetListResult
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+	s.Empty(result.Assets)
 }
 
 func (s *ControllerTestSuite) Test02_Asset_Create() {
 	asset := models.Asset{
-		Symbol:   "BTC",
-		Name:     "Bitcoin",
-		Type:     "crypto",
-		Decimals: 8,
+		Symbol:          "BTC",
+		Name:            "Bitcoin",
+		Amount:          1.5,
+		TransactionType: "deposit",
+		Timestamp:       time.Now(),
 	}
 	body, _ := json.Marshal(asset)
 
@@ -105,16 +104,19 @@ func (s *ControllerTestSuite) Test02_Asset_Create() {
 	s.NotZero(created.ID)
 	s.Equal("BTC", created.Symbol)
 	s.Equal("Bitcoin", created.Name)
+	s.Equal(1.5, created.Amount)
+	s.Equal("deposit", created.TransactionType)
 
 	s.createdAsset = &created
 }
 
 func (s *ControllerTestSuite) Test03_Asset_CreateSecond() {
 	asset := models.Asset{
-		Symbol:   "ETH",
-		Name:     "Ethereum",
-		Type:     "crypto",
-		Decimals: 18,
+		Symbol:          "ETH",
+		Name:            "Ethereum",
+		Amount:          10.0,
+		TransactionType: "deposit",
+		Timestamp:       time.Now(),
 	}
 	body, _ := json.Marshal(asset)
 
@@ -165,10 +167,11 @@ func (s *ControllerTestSuite) Test07_Asset_Update() {
 	s.Require().NotNil(s.createdAsset)
 
 	updated := models.Asset{
-		Symbol:   "BTC",
-		Name:     "Bitcoin (Updated)",
-		Type:     "crypto",
-		Decimals: 8,
+		Symbol:          "BTC",
+		Name:            "Bitcoin Updated",
+		Amount:          2.0,
+		TransactionType: "deposit",
+		Timestamp:       time.Now(),
 	}
 	body, _ := json.Marshal(updated)
 
@@ -181,11 +184,12 @@ func (s *ControllerTestSuite) Test07_Asset_Update() {
 
 	var asset models.Asset
 	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &asset))
-	s.Equal("Bitcoin (Updated)", asset.Name)
+	s.Equal("Bitcoin Updated", asset.Name)
+	s.Equal(2.0, asset.Amount)
 }
 
 func (s *ControllerTestSuite) Test08_Asset_UpdateNotFound() {
-	updated := models.Asset{Symbol: "XRP", Name: "Ripple", Type: "crypto"}
+	updated := models.Asset{Symbol: "XRP", Name: "Ripple", Amount: 1.0, TransactionType: "deposit"}
 	body, _ := json.Marshal(updated)
 
 	req := httptest.NewRequest(http.MethodPut, "/api/assets/999", bytes.NewReader(body))
@@ -203,9 +207,9 @@ func (s *ControllerTestSuite) Test09_Asset_List() {
 
 	s.Equal(http.StatusOK, w.Code)
 
-	var assets []models.Asset
-	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &assets))
-	s.Len(assets, 2)
+	var result repo.AssetListResult
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+	s.Len(result.Assets, 2)
 }
 
 func (s *ControllerTestSuite) Test10_Asset_CreateInvalidJSON() {
@@ -215,130 +219,6 @@ func (s *ControllerTestSuite) Test10_Asset_CreateInvalidJSON() {
 	s.router.ServeHTTP(w, req)
 
 	s.Equal(http.StatusBadRequest, w.Code)
-}
-
-// Transaction Tests
-
-func (s *ControllerTestSuite) Test20_Transaction_ListEmpty() {
-	req := httptest.NewRequest(http.MethodGet, "/api/transactions", nil)
-	w := httptest.NewRecorder()
-	s.router.ServeHTTP(w, req)
-
-	s.Equal(http.StatusOK, w.Code)
-
-	var result repo.TransactionListResult
-	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
-	s.Empty(result.Transactions)
-	s.Equal(int64(0), result.Total)
-}
-
-func (s *ControllerTestSuite) Test21_Transaction_Create() {
-	s.Require().NotNil(s.createdAsset)
-
-	tx := models.Transaction{
-		Type:      "deposit",
-		AssetID:   s.createdAsset.ID,
-		Amount:    1.5,
-		Notes:     "Initial deposit",
-		Timestamp: time.Now(),
-	}
-	body, _ := json.Marshal(tx)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/transactions", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	s.router.ServeHTTP(w, req)
-
-	s.Equal(http.StatusCreated, w.Code)
-
-	var created models.Transaction
-	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &created))
-	s.NotZero(created.ID)
-	s.Equal("deposit", created.Type)
-	s.Equal(1.5, created.Amount)
-
-	s.createdTransaction = &created
-}
-
-func (s *ControllerTestSuite) Test22_Transaction_Get() {
-	s.Require().NotNil(s.createdTransaction)
-
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/transactions/%d", s.createdTransaction.ID), nil)
-	w := httptest.NewRecorder()
-	s.router.ServeHTTP(w, req)
-
-	s.Equal(http.StatusOK, w.Code)
-
-	var tx models.Transaction
-	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &tx))
-	s.Equal(s.createdTransaction.ID, tx.ID)
-}
-
-func (s *ControllerTestSuite) Test23_Transaction_GetNotFound() {
-	req := httptest.NewRequest(http.MethodGet, "/api/transactions/999", nil)
-	w := httptest.NewRecorder()
-	s.router.ServeHTTP(w, req)
-
-	s.Equal(http.StatusNotFound, w.Code)
-}
-
-func (s *ControllerTestSuite) Test24_Transaction_GetInvalidID() {
-	req := httptest.NewRequest(http.MethodGet, "/api/transactions/invalid", nil)
-	w := httptest.NewRecorder()
-	s.router.ServeHTTP(w, req)
-
-	s.Equal(http.StatusBadRequest, w.Code)
-}
-
-func (s *ControllerTestSuite) Test25_Transaction_Update() {
-	s.Require().NotNil(s.createdTransaction)
-
-	updated := models.Transaction{
-		Type:      "deposit",
-		AssetID:   s.createdAsset.ID,
-		Amount:    2.5,
-		Notes:     "Updated deposit",
-		Timestamp: time.Now(),
-	}
-	body, _ := json.Marshal(updated)
-
-	req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/transactions/%d", s.createdTransaction.ID), bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	s.router.ServeHTTP(w, req)
-
-	s.Equal(http.StatusOK, w.Code)
-
-	var tx models.Transaction
-	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &tx))
-	s.Equal(2.5, tx.Amount)
-	s.Equal("Updated deposit", tx.Notes)
-}
-
-func (s *ControllerTestSuite) Test26_Transaction_UpdateNotFound() {
-	updated := models.Transaction{Type: "deposit", AssetID: 1, Amount: 1.0}
-	body, _ := json.Marshal(updated)
-
-	req := httptest.NewRequest(http.MethodPut, "/api/transactions/999", bytes.NewReader(body))
-	req.Header.Set("Content-Type", "application/json")
-	w := httptest.NewRecorder()
-	s.router.ServeHTTP(w, req)
-
-	s.Equal(http.StatusNotFound, w.Code)
-}
-
-func (s *ControllerTestSuite) Test27_Transaction_ListWithFilters() {
-	s.Require().NotNil(s.createdAsset)
-
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/transactions?asset_id=%d&type=deposit", s.createdAsset.ID), nil)
-	w := httptest.NewRecorder()
-	s.router.ServeHTTP(w, req)
-
-	s.Equal(http.StatusOK, w.Code)
-
-	var result repo.TransactionListResult
-	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
-	s.Len(result.Transactions, 1)
 }
 
 // Exchange Tests
@@ -356,12 +236,9 @@ func (s *ControllerTestSuite) Test40_Exchange_ListEmpty() {
 }
 
 func (s *ControllerTestSuite) Test41_Exchange_Create() {
-	s.Require().NotNil(s.createdAsset)
-	s.Require().NotNil(s.createdAsset2)
-
 	exchange := models.Exchange{
-		FromAssetID: s.createdAsset.ID,
-		ToAssetID:   s.createdAsset2.ID,
+		FromSymbol:  "BTC",
+		ToSymbol:    "ETH",
 		FromAmount:  1.0,
 		ToAmount:    15.0,
 		Fee:         0.001,
@@ -387,14 +264,12 @@ func (s *ControllerTestSuite) Test41_Exchange_Create() {
 	s.createdExchange = &created
 }
 
-func (s *ControllerTestSuite) Test42_Exchange_CreateSameAsset() {
-	s.Require().NotNil(s.createdAsset)
-
+func (s *ControllerTestSuite) Test42_Exchange_CreateSameSymbol() {
 	exchange := models.Exchange{
-		FromAssetID: s.createdAsset.ID,
-		ToAssetID:   s.createdAsset.ID,
-		FromAmount:  1.0,
-		ToAmount:    1.0,
+		FromSymbol: "BTC",
+		ToSymbol:   "BTC",
+		FromAmount: 1.0,
+		ToAmount:   1.0,
 	}
 	body, _ := json.Marshal(exchange)
 
@@ -440,12 +315,12 @@ func (s *ControllerTestSuite) Test46_Exchange_Update() {
 	s.Require().NotNil(s.createdExchange)
 
 	updated := models.Exchange{
-		FromAssetID: s.createdAsset.ID,
-		ToAssetID:   s.createdAsset2.ID,
-		FromAmount:  2.0,
-		ToAmount:    30.0,
-		Notes:       "Updated exchange",
-		Timestamp:   time.Now(),
+		FromSymbol: "BTC",
+		ToSymbol:   "ETH",
+		FromAmount: 2.0,
+		ToAmount:   30.0,
+		Notes:      "Updated exchange",
+		Timestamp:  time.Now(),
 	}
 	body, _ := json.Marshal(updated)
 
@@ -463,7 +338,7 @@ func (s *ControllerTestSuite) Test46_Exchange_Update() {
 }
 
 func (s *ControllerTestSuite) Test47_Exchange_UpdateNotFound() {
-	updated := models.Exchange{FromAssetID: 1, ToAssetID: 2, FromAmount: 1.0, ToAmount: 1.0}
+	updated := models.Exchange{FromSymbol: "BTC", ToSymbol: "ETH", FromAmount: 1.0, ToAmount: 1.0}
 	body, _ := json.Marshal(updated)
 
 	req := httptest.NewRequest(http.MethodPut, "/api/exchanges/999", bytes.NewReader(body))
@@ -475,9 +350,7 @@ func (s *ControllerTestSuite) Test47_Exchange_UpdateNotFound() {
 }
 
 func (s *ControllerTestSuite) Test48_Exchange_ListWithFilters() {
-	s.Require().NotNil(s.createdAsset)
-
-	req := httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/exchanges?from_asset_id=%d", s.createdAsset.ID), nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/exchanges?from_symbol=BTC", nil)
 	w := httptest.NewRecorder()
 	s.router.ServeHTTP(w, req)
 
@@ -486,6 +359,76 @@ func (s *ControllerTestSuite) Test48_Exchange_ListWithFilters() {
 	var result repo.ExchangeListResult
 	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
 	s.Len(result.Exchanges, 1)
+}
+
+func (s *ControllerTestSuite) Test49_Exchange_CreateInvalidJSON() {
+	req := httptest.NewRequest(http.MethodPost, "/api/exchanges", bytes.NewReader([]byte("invalid")))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusBadRequest, w.Code)
+}
+
+// Portfolio Tests
+
+func (s *ControllerTestSuite) Test60_Portfolio_Summary() {
+	req := httptest.NewRequest(http.MethodGet, "/api/portfolio/summary", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+
+	var result map[string]interface{}
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+
+	s.Contains(result, "total_value")
+	s.Contains(result, "currency")
+	s.Contains(result, "holdings")
+	s.Equal("USD", result["currency"])
+}
+
+func (s *ControllerTestSuite) Test61_Portfolio_Allocation() {
+	req := httptest.NewRequest(http.MethodGet, "/api/portfolio/allocation", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+
+	var result map[string]interface{}
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+
+	s.Contains(result, "total_value")
+	s.Contains(result, "allocations")
+}
+
+func (s *ControllerTestSuite) Test62_Portfolio_Performance() {
+	req := httptest.NewRequest(http.MethodGet, "/api/portfolio/performance", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+
+	var result map[string]interface{}
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+
+	s.Contains(result, "total_cost_basis")
+	s.Contains(result, "total_current_value")
+	s.Contains(result, "total_profit_loss")
+}
+
+func (s *ControllerTestSuite) Test63_Portfolio_History() {
+	req := httptest.NewRequest(http.MethodGet, "/api/portfolio/history", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	s.Equal(http.StatusOK, w.Code)
+
+	var result map[string]interface{}
+	s.Require().NoError(json.Unmarshal(w.Body.Bytes(), &result))
+
+	s.Contains(result, "days")
+	s.Contains(result, "history")
 }
 
 // Delete Tests
@@ -511,34 +454,10 @@ func (s *ControllerTestSuite) Test91_Exchange_DeleteNotFound() {
 	w := httptest.NewRecorder()
 	s.router.ServeHTTP(w, req)
 
-	s.Equal(http.StatusNotFound, w.Code)
-}
-
-func (s *ControllerTestSuite) Test92_Transaction_Delete() {
-	s.Require().NotNil(s.createdTransaction)
-
-	req := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/transactions/%d", s.createdTransaction.ID), nil)
-	w := httptest.NewRecorder()
-	s.router.ServeHTTP(w, req)
-
 	s.Equal(http.StatusNoContent, w.Code)
-
-	req = httptest.NewRequest(http.MethodGet, fmt.Sprintf("/api/transactions/%d", s.createdTransaction.ID), nil)
-	w = httptest.NewRecorder()
-	s.router.ServeHTTP(w, req)
-
-	s.Equal(http.StatusNotFound, w.Code)
 }
 
-func (s *ControllerTestSuite) Test93_Transaction_DeleteNotFound() {
-	req := httptest.NewRequest(http.MethodDelete, "/api/transactions/999", nil)
-	w := httptest.NewRecorder()
-	s.router.ServeHTTP(w, req)
-
-	s.Equal(http.StatusNotFound, w.Code)
-}
-
-func (s *ControllerTestSuite) Test94_Asset_Delete() {
+func (s *ControllerTestSuite) Test92_Asset_Delete() {
 	s.Require().NotNil(s.createdAsset)
 
 	req := httptest.NewRequest(http.MethodDelete, fmt.Sprintf("/api/assets/%d", s.createdAsset.ID), nil)
@@ -554,12 +473,12 @@ func (s *ControllerTestSuite) Test94_Asset_Delete() {
 	s.Equal(http.StatusNotFound, w.Code)
 }
 
-func (s *ControllerTestSuite) Test95_Asset_DeleteNotFound() {
+func (s *ControllerTestSuite) Test93_Asset_DeleteNotFound() {
 	req := httptest.NewRequest(http.MethodDelete, "/api/assets/999", nil)
 	w := httptest.NewRecorder()
 	s.router.ServeHTTP(w, req)
 
-	s.Equal(http.StatusNotFound, w.Code)
+	s.Equal(http.StatusNoContent, w.Code)
 }
 
 func TestControllers(t *testing.T) {

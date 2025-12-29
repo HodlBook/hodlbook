@@ -1,0 +1,81 @@
+{{define "modal"}}
+<div x-data="{ open: false }" @keydown.escape.window="open = false">
+    <button @click="open = true" class="btn {{.TriggerClass}}">
+        {{.TriggerText}}
+    </button>
+
+    <div x-show="open" x-cloak class="modal-overlay" @click.self="open = false">
+        <div class="modal" x-transition>
+            <div class="modal-header">
+                <h2 class="modal-title">{{.Title}}</h2>
+                <button @click="open = false" class="modal-close">&times;</button>
+            </div>
+            <div class="modal-body">
+                {{.Content}}
+            </div>
+            {{if .Footer}}
+            <div class="modal-footer">
+                {{.Footer}}
+            </div>
+            {{end}}
+        </div>
+    </div>
+</div>
+{{end}}
+
+{{define "confirm-modal"}}
+<div x-data="{ open: false, action: '' }" @keydown.escape.window="open = false">
+    <template x-teleport="body">
+        <div x-show="open" x-cloak class="modal-overlay" @click.self="open = false">
+            <div class="modal modal-sm" x-transition>
+                <div class="modal-header">
+                    <h2 class="modal-title">{{.Title}}</h2>
+                    <button @click="open = false" class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>{{.Message}}</p>
+                </div>
+                <div class="modal-footer">
+                    <button @click="open = false" class="btn btn-secondary">Cancel</button>
+                    <button
+                        @click="htmx.ajax('DELETE', action, {target: '{{.Target}}', swap: '{{.Swap}}'}); open = false"
+                        class="btn btn-danger">
+                        {{.ConfirmText}}
+                    </button>
+                </div>
+            </div>
+        </div>
+    </template>
+</div>
+{{end}}
+
+{{define "form-modal"}}
+<div x-data="{ open: false }" @keydown.escape.window="open = false" @close-modal.window="open = false">
+    <button @click="open = true" class="btn {{.TriggerClass}}">
+        {{.TriggerText}}
+    </button>
+
+    <template x-teleport="body">
+        <div x-show="open" x-cloak class="modal-overlay" @click.self="open = false">
+            <div class="modal" x-transition>
+                <div class="modal-header">
+                    <h2 class="modal-title">{{.Title}}</h2>
+                    <button @click="open = false" class="modal-close">&times;</button>
+                </div>
+                <form hx-post="{{.Action}}"
+                      hx-target="{{.Target}}"
+                      hx-swap="{{.Swap}}"
+                      @htmx:after-request="if(event.detail.successful) { open = false; $dispatch('show-toast', {message: '{{.SuccessMessage}}', type: 'success'}) }">
+                    <div class="modal-body">
+                        {{.Content}}
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" @click="open = false" class="btn btn-secondary">Cancel</button>
+                        <button type="submit" class="btn btn-primary">{{.SubmitText}}</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </template>
+</div>
+{{end}}

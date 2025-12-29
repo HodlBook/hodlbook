@@ -1,0 +1,46 @@
+{{if .Empty}}
+<div class="empty-state">
+    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/>
+        <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/>
+        <path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z"/>
+    </svg>
+    <h3>No Holdings</h3>
+    <p>Add transactions to start tracking your portfolio.</p>
+    <a href="/transactions" class="btn btn-primary">Add Transaction</a>
+</div>
+{{else}}
+<table class="data-table">
+    <thead>
+        <tr>
+            <th>Asset</th>
+            <th class="text-right">Amount</th>
+            <th class="text-right">Price</th>
+            <th class="text-right">Value</th>
+            <th class="text-right">Change</th>
+            <th class="text-right">Allocation</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Holdings}}
+        <tr>
+            <td>
+                <span class="asset-symbol">{{.Symbol}}</span>
+            </td>
+            <td class="text-right">{{.Amount}}</td>
+            <td class="text-right">{{.Price}}</td>
+            <td class="text-right font-medium">{{.Value}}</td>
+            <td class="text-right {{if .Positive}}positive{{else}}negative{{end}}">{{.Change}}</td>
+            <td class="text-right">{{.Allocation}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+    <tfoot>
+        <tr class="table-footer">
+            <td colspan="3"><strong>Total</strong></td>
+            <td class="text-right"><strong>{{.TotalValue}}</strong></td>
+            <td colspan="2"></td>
+        </tr>
+    </tfoot>
+</table>
+{{end}}

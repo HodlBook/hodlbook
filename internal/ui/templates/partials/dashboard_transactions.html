@@ -1,0 +1,62 @@
+{{if .Empty}}
+<div class="empty-state">
+    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+    </svg>
+    <h3>No Transactions</h3>
+    <p>Record your first transaction.</p>
+    <a href="/transactions" class="btn btn-primary">Add Transaction</a>
+</div>
+{{else}}
+<div class="transaction-list">
+    {{range .Items}}
+    <div class="transaction-item">
+        <div class="transaction-icon {{.TypeClass}}">
+            {{if eq .Type "buy"}}
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 19V5M5 12l7-7 7 7"/>
+            </svg>
+            {{else if eq .Type "sell"}}
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12l7 7 7-7"/>
+            </svg>
+            {{else if eq .Type "deposit"}}
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 3v12M5 10l7 7 7-7"/>
+                <path d="M19 21H5"/>
+            </svg>
+            {{else if eq .Type "exchange"}}
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M7 16V4M7 4L3 8M7 4l4 4"/>
+                <path d="M17 8v12M17 20l4-4M17 20l-4-4"/>
+            </svg>
+            {{else}}
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 21V9M5 14l7-7 7 7"/>
+                <path d="M19 3H5"/>
+            </svg>
+            {{end}}
+        </div>
+        {{if .IsExchange}}
+        <div class="transaction-details">
+            <span class="transaction-type">{{.Type}}</span>
+            <span class="transaction-asset">{{.FromSymbol}} &rarr; {{.ToSymbol}}</span>
+        </div>
+        <div class="transaction-amount">
+            <span class="amount">{{.FromAmount}} &rarr; {{.ToAmount}}</span>
+            <span class="date">{{.Date}}</span>
+        </div>
+        {{else}}
+        <div class="transaction-details">
+            <span class="transaction-type">{{.Type}}</span>
+            <span class="transaction-asset">{{.Symbol}}</span>
+        </div>
+        <div class="transaction-amount">
+            <span class="amount {{.TypeClass}}">{{.Amount}}</span>
+            <span class="date">{{.Date}}</span>
+        </div>
+        {{end}}
+    </div>
+    {{end}}
+</div>
+{{end}}

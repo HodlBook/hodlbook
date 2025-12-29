@@ -1,0 +1,81 @@
+{{define "spinner"}}
+<div class="spinner {{.Size}}">
+    <div class="spinner-circle"></div>
+</div>
+{{end}}
+
+{{define "skeleton"}}
+<div class="skeleton {{.Type}} {{.Class}}" style="{{if .Width}}width: {{.Width}};{{end}} {{if .Height}}height: {{.Height}};{{end}}"></div>
+{{end}}
+
+{{define "skeleton-card"}}
+<div class="card skeleton-card">
+    <div class="card-body">
+        <div class="skeleton text" style="width: 40%;"></div>
+        <div class="skeleton text lg" style="width: 60%;"></div>
+        <div class="skeleton text sm" style="width: 30%;"></div>
+    </div>
+</div>
+{{end}}
+
+{{define "skeleton-table"}}
+<div class="skeleton-table">
+    <div class="skeleton-row header">
+        {{range .Columns}}
+        <div class="skeleton text"></div>
+        {{end}}
+    </div>
+    {{range .Rows}}
+    <div class="skeleton-row">
+        {{range $.Columns}}
+        <div class="skeleton text"></div>
+        {{end}}
+    </div>
+    {{end}}
+</div>
+{{end}}
+
+{{define "loading-overlay"}}
+<div class="loading-overlay htmx-indicator">
+    <div class="spinner lg">
+        <div class="spinner-circle"></div>
+    </div>
+    {{if .Message}}
+    <p class="loading-message">{{.Message}}</p>
+    {{end}}
+</div>
+{{end}}
+
+{{define "empty-state"}}
+<tr class="empty-state-row">
+    <td colspan="{{.Colspan}}">
+        <div class="empty-state">
+            {{if .Icon}}
+            <div class="empty-icon">{{.Icon}}</div>
+            {{end}}
+            <h3>{{.Title}}</h3>
+            {{if .Description}}
+            <p>{{.Description}}</p>
+            {{end}}
+            {{if .Action}}
+            <div class="empty-action">{{.Action}}</div>
+            {{end}}
+        </div>
+    </td>
+</tr>
+{{end}}
+
+{{define "empty-state-block"}}
+<div class="empty-state">
+    {{if .Icon}}
+    <div class="empty-icon">{{.Icon}}</div>
+    {{end}}
+    <h3>{{.Title}}</h3>
+    {{if .Description}}
+    <p>{{.Description}}</p>
+    {{end}}
+    {{if .Action}}
+    <div class="empty-action">{{.Action}}</div>
+    {{end}}
+</div>
+{{end}}

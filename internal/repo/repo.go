@@ -22,5 +22,18 @@ func New(db *gorm.DB) (*Repository, error) {
 }
 
 func (r *Repository) Migrate() error {
-	return r.db.AutoMigrate(&models.Asset{}, &models.Transaction{}, &models.Exchange{}, &models.Price{})
+	if err := r.db.AutoMigrate(
+		&models.Asset{},
+		&models.Exchange{},
+		&models.Price{},
+		&models.AssetHistoricValue{},
+	); err != nil {
+		return err
+	}
+
+	r.db.Exec("DROP INDEX IF EXISTS uni_assets_symbol")
+	r.db.Exec("DROP INDEX IF EXISTS idx_assets_symbol_unique")
+	r.db.Exec("DROP INDEX IF EXISTS idx_assets_symbol")
+
+	return nil
 }

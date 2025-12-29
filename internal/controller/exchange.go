@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 	"time"
@@ -9,8 +10,24 @@ import (
 	"hodlbook/internal/repo"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
+// ListExchanges godoc
+// @Summary List exchanges
+// @Description Get a list of exchanges with optional filters
+// @Tags exchanges
+// @Produce json
+// @Param limit query int false "Limit"
+// @Param offset query int false "Offset"
+// @Param symbol query string false "Symbol (matches from or to)"
+// @Param from_symbol query string false "From Symbol"
+// @Param to_symbol query string false "To Symbol"
+// @Param start_date query string false "Start date (YYYY-MM-DD)"
+// @Param end_date query string false "End date (YYYY-MM-DD)"
+// @Success 200 {object} repo.ExchangeListResult
+// @Failure 500 {object} map[string]string
+// @Router /api/exchanges [get]
 func (c *Controller) ListExchanges(ctx *gin.Context) {
 	filter := repo.ExchangeFilter{}
 
@@ -24,20 +41,14 @@ func (c *Controller) ListExchanges(ctx *gin.Context) {
 			filter.Offset = offset
 		}
 	}
-	if assetIDStr := ctx.Query("asset_id"); assetIDStr != "" {
-		if assetID, err := strconv.ParseInt(assetIDStr, 10, 64); err == nil {
-			filter.AssetID = &assetID
-		}
+	if symbol := ctx.Query("symbol"); symbol != "" {
+		filter.Symbol = &symbol
 	}
-	if fromAssetIDStr := ctx.Query("from_asset_id"); fromAssetIDStr != "" {
-		if fromAssetID, err := strconv.ParseInt(fromAssetIDStr, 10, 64); err == nil {
-			filter.FromAssetID = &fromAssetID
-		}
+	if fromSymbol := ctx.Query("from_symbol"); fromSymbol != "" {
+		filter.FromSymbol = &fromSymbol
 	}
-	if toAssetIDStr := ctx.Query("to_asset_id"); toAssetIDStr != "" {
-		if toAssetID, err := strconv.ParseInt(toAssetIDStr, 10, 64); err == nil {
-			filter.ToAssetID = &toAssetID
-		}
+	if toSymbol := ctx.Query("to_symbol"); toSymbol != "" {
+		filter.ToSymbol = &toSymbol
 	}
 	if startDateStr := ctx.Query("start_date"); startDateStr != "" {
 		if startDate, err := time.Parse("2006-01-02", startDateStr); err == nil {
@@ -53,37 +64,58 @@ func (c *Controller) ListExchanges(ctx *gin.Context) {
 
 	result, err := c.repo.ListExchanges(filter)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch exchanges"})
+		internalError(ctx, "failed to fetch exchanges")
 		return
 	}
 	ctx.JSON(http.StatusOK, result)
 }
 
+// GetExchange godoc
+// @Summary Get an exchange by ID
+// @Description Get a single exchange by its ID
+// @Tags exchanges
+// @Produce json
+// @Param id path int true "Exchange ID"
+// @Success 200 {object} models.Exchange
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Router /api/exchanges/{id} [get]
 func (c *Controller) GetExchange(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid exchange ID"})
+		badRequest(ctx, "invalid exchange id")
 		return
 	}
 
 	exchange, err := c.repo.GetExchangeByID(id)
 	if err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Exchange not found"})
+		notFound(ctx, "exchange not found")
 		return
 	}
 
 	ctx.JSON(http.StatusOK, exchange)
 }
 
+// CreateExchange godoc
+// @Summary Create a new exchange
+// @Description Create a new exchange with the provided data
+// @Tags exchanges
+// @Accept json
+// @Produce json
+// @Param exchange body models.Exchange true "Exchange data"
+// @Success 201 {object} models.Exchange
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/exchanges [post]
 func (c *Controller) CreateExchange(ctx *gin.Context) {
 	var exchange models.Exchange
 	if err := ctx.ShouldBindJSON(&exchange); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
+		badRequestWithDetails(ctx, "invalid input", err.Error())
 		return
 	}
 
-	if exchange.FromAssetID == exchange.ToAssetID {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "From and To assets must be different"})
+	if exchange.FromSymbol == exchange.ToSymbol {
+		badRequest(ctx, "from and to symbols must be different")
 		return
 	}
 
@@ -92,61 +124,78 @@ func (c *Controller) CreateExchange(ctx *gin.Context) {
 	}
 
 	if err := c.repo.CreateExchange(&exchange); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create exchange"})
+		internalError(ctx, "failed to create exchange")
 		return
 	}
 
 	ctx.JSON(http.StatusCreated, exchange)
 }
 
+// UpdateExchange godoc
+// @Summary Update an exchange
+// @Description Update an existing exchange by its ID
+// @Tags exchanges
+// @Accept json
+// @Produce json
+// @Param id path int true "Exchange ID"
+// @Param exchange body models.Exchange true "Exchange data"
+// @Success 200 {object} models.Exchange
+// @Failure 400 {object} map[string]string
+// @Failure 404 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/exchanges/{id} [put]
 func (c *Controller) UpdateExchange(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid exchange ID"})
+		badRequest(ctx, "invalid exchange id")
 		return
 	}
 
 	if _, err = c.repo.GetExchangeByID(id); err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Exchange not found"})
+		notFound(ctx, "exchange not found")
 		return
 	}
 
 	var exchange models.Exchange
 	if err := ctx.ShouldBindJSON(&exchange); err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid input", "details": err.Error()})
+		badRequestWithDetails(ctx, "invalid input", err.Error())
 		return
 	}
 
-	if exchange.FromAssetID == exchange.ToAssetID {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "From and To assets must be different"})
+	if exchange.FromSymbol == exchange.ToSymbol {
+		badRequest(ctx, "from and to symbols must be different")
 		return
 	}
 
 	exchange.ID = id
 	if err := c.repo.UpdateExchange(&exchange); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update exchange"})
+		internalError(ctx, "failed to update exchange")
 		return
 	}
 
 	ctx.JSON(http.StatusOK, exchange)
 }
 
+// DeleteExchange godoc
+// @Summary Delete an exchange
+// @Description Delete an exchange by its ID
+// @Tags exchanges
+// @Param id path int true "Exchange ID"
+// @Success 204
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/exchanges/{id} [delete]
 func (c *Controller) DeleteExchange(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
 	if err != nil {
-		ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid exchange ID"})
+		badRequest(ctx, "invalid exchange id")
 		return
 	}
 
-	if _, err = c.repo.GetExchangeByID(id); err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"error": "Exchange not found"})
+	if err := c.repo.DeleteExchange(id); err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		internalError(ctx, "failed to delete exchange")
 		return
 	}
 
-	if err := c.repo.DeleteExchange(id); err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to delete exchange"})
-		return
-	}
-
-	ctx.JSON(http.StatusNoContent, nil)
+	ctx.Status(http.StatusNoContent)
 }

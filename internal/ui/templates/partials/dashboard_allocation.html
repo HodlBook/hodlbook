@@ -1,0 +1,29 @@
+{{if .Items}}
+<div class="allocation-container" x-data="allocationChart()" x-init="init()" data-chart-items='[{{range $i, $item := .Items}}{{if $i}},{{end}}{"label":"{{$item.Symbol}}","value":{{$item.Percentage}},"color":"{{$item.Color}}"}{{end}}]'>
+    <div class="allocation-chart">
+        <canvas x-ref="canvas" width="162" height="162"></canvas>
+        <div class="allocation-center">
+            <span class="allocation-total">{{.TotalValue}}</span>
+        </div>
+    </div>
+    <div class="allocation-legend">
+        {{range .Items}}
+        <div class="legend-item">
+            <span class="legend-color" style="background-color: {{.Color}}"></span>
+            <span class="legend-label">{{.Symbol}}</span>
+            <span class="legend-value">{{printf "%.1f" .Percentage}}%</span>
+        </div>
+        {{end}}
+    </div>
+</div>
+{{else}}
+<div class="empty-state">
+    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 6v12M6 12h12"/>
+    </svg>
+    <h3>No Assets Yet</h3>
+    <p>Add your first asset to see allocation.</p>
+    <a href="/assets" class="btn btn-primary">Add Asset</a>
+</div>
+{{end}}

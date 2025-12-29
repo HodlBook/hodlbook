@@ -1,0 +1,47 @@
+{{define "card"}}
+<div class="card {{.Class}}">
+    {{if .Title}}
+    <div class="card-header">
+        <h3 class="card-title">{{.Title}}</h3>
+        {{if .Action}}
+        <div class="card-action">{{.Action}}</div>
+        {{end}}
+    </div>
+    {{end}}
+    <div class="card-body">
+        {{.Content}}
+    </div>
+</div>
+{{end}}
+
+{{define "stat-card"}}
+<div class="stat-card {{if .Positive}}positive{{else if .Negative}}negative{{end}}">
+    <div class="stat-icon">
+        {{.Icon}}
+    </div>
+    <div class="stat-content">
+        <span class="stat-label">{{.Label}}</span>
+        <span class="stat-value">{{.Value}}</span>
+        {{if .Change}}
+        <span class="stat-change {{if .Positive}}positive{{else}}negative{{end}}">
+            {{.Change}}
+        </span>
+        {{end}}
+    </div>
+</div>
+{{end}}
+
+{{define "summary-card"}}
+<div class="summary-card" hx-get="{{.RefreshURL}}" hx-trigger="every 60s" hx-swap="outerHTML">
+    <div class="summary-header">
+        <span class="summary-label">{{.Label}}</span>
+        {{if .Icon}}{{.Icon}}{{end}}
+    </div>
+    <div class="summary-value">{{.Value}}</div>
+    {{if .SubValue}}
+    <div class="summary-subvalue {{if .Positive}}positive{{else if .Negative}}negative{{end}}">
+        {{.SubValue}}
+    </div>
+    {{end}}
+</div>
+{{end}}

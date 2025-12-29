@@ -1,0 +1,320 @@
+{{define "content"}}
+<div class="assets-page">
+    <section class="page-header">
+        <div class="page-header-actions">
+            <button class="btn btn-primary" @click="$dispatch('open-add-asset')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 5v14M5 12h14"/>
+                </svg>
+                Add Asset
+            </button>
+        </div>
+    </section>
+
+    <section class="assets-filters">
+        <div class="card">
+            <div class="card-body filters-row">
+                <div class="filter-group">
+                    <label>Symbol</label>
+                    <select name="symbol" class="form-control"
+                        hx-get="/partials/assets/table"
+                        hx-target="#assets-table-container"
+                        hx-include=".filters-row select, .filters-row input">
+                        <option value="">All Symbols</option>
+                        {{range .Symbols}}
+                        <option value="{{.}}">{{.}}</option>
+                        {{end}}
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>Type</label>
+                    <select name="type" class="form-control"
+                        hx-get="/partials/assets/table"
+                        hx-target="#assets-table-container"
+                        hx-include=".filters-row select, .filters-row input">
+                        <option value="">All Types</option>
+                        <option value="deposit">Deposit</option>
+                        <option value="withdraw">Withdraw</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <label>From</label>
+                    <input type="date" name="from" class="form-control"
+                        hx-get="/partials/assets/table"
+                        hx-target="#assets-table-container"
+                        hx-trigger="change"
+                        hx-include=".filters-row select, .filters-row input">
+                </div>
+                <div class="filter-group">
+                    <label>To</label>
+                    <input type="date" name="to" class="form-control"
+                        hx-get="/partials/assets/table"
+                        hx-target="#assets-table-container"
+                        hx-trigger="change"
+                        hx-include=".filters-row select, .filters-row input">
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="assets-list">
+        <div class="card">
+            <div class="card-body">
+                <div id="assets-table-container" hx-get="/partials/assets/table" hx-trigger="load" hx-swap="innerHTML">
+                    <div class="skeleton-table">
+                        <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                        <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                        <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div x-data="assetModal()" @open-add-asset.window="openAdd()" @open-edit-asset.window="openEdit($event.detail)" @close-modal.window="open = false">
+        <div x-show="open" x-cloak class="modal-overlay" @click.self="open = false" @keydown.escape.window="open = false">
+            <div class="modal" x-transition>
+                <div class="modal-header">
+                    <h2 class="modal-title" x-text="isEdit ? 'Edit Asset' : 'Add Asset'"></h2>
+                    <button @click="open = false" class="modal-close">&times;</button>
+                </div>
+                <form @submit.prevent="submitForm($el)"
+                      hx-target="#assets-table-container"
+                      hx-swap="innerHTML">
+                    <div class="modal-body">
+                        <div class="form-group">
+                            <label for="asset-type">Type <span class="required">*</span></label>
+                            <select id="asset-type" name="type" class="form-control" required x-model="type">
+                                <option value="">Select type...</option>
+                                <option value="deposit">Deposit</option>
+                                <option value="withdraw">Withdraw</option>
+                            </select>
+                        </div>
+                        <div class="form-group" x-data="cryptoSearch()" x-init="$watch('symbol', value => search = value)">
+                            <label for="asset-symbol">Symbol <span class="required">*</span></label>
+                            <div class="crypto-select" @click.outside="showDropdown = false">
+                                <input type="text" id="asset-symbol" name="symbol" class="form-control" required
+                                    x-model="search" placeholder="Search crypto..."
+                                    @input="onInput($event.target.value); symbol = $event.target.value.toUpperCase()"
+                                    @focus="onFocus()"
+                                    @keydown.arrow-down.prevent="highlightNext()"
+                                    @keydown.arrow-up.prevent="highlightPrev()"
+                                    @keydown.enter.prevent="selectHighlighted()"
+                                    @keydown.escape="showDropdown = false"
+                                    autocomplete="off">
+                                <div class="crypto-dropdown" x-show="showDropdown && filteredCryptos.length > 0" x-cloak>
+                                    <template x-for="(crypto, index) in filteredCryptos" :key="crypto.symbol">
+                                        <div class="crypto-option"
+                                            :class="{ 'highlighted': index === highlightedIndex }"
+                                            @click="selectCrypto(crypto)"
+                                            @mouseenter="highlightedIndex = index">
+                                            <span class="crypto-symbol" x-text="crypto.symbol"></span>
+                                            <span class="crypto-name" x-text="crypto.name"></span>
+                                        </div>
+                                    </template>
+                                </div>
+                            </div>
+                            <small class="form-hint">Select from supported cryptocurrencies</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="asset-name">Name</label>
+                            <input type="text" id="asset-name" name="name" class="form-control"
+                                x-model="name" placeholder="Auto-filled from selection" readonly>
+                            <small class="form-hint">Auto-filled from selection</small>
+                        </div>
+                        <div class="form-group">
+                            <label for="asset-amount">Amount <span class="required">*</span></label>
+                            <input type="number" id="asset-amount" name="amount" class="form-control"
+                                step="any" min="0" required x-model="amount" placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label for="asset-timestamp">Date <span class="required">*</span></label>
+                            <input type="datetime-local" id="asset-timestamp" name="timestamp" class="form-control" required x-model="timestamp">
+                        </div>
+                        <div class="form-group">
+                            <label for="asset-notes">Notes</label>
+                            <textarea id="asset-notes" name="notes" class="form-control" rows="2" x-model="notes" placeholder="Optional notes..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" @click="open = false" class="btn btn-secondary">Cancel</button>
+                        <button type="submit" class="btn btn-primary" x-text="isEdit ? 'Update' : 'Add'"></button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div x-data="deleteAssetModal()" @open-delete-asset.window="openDelete($event.detail)" @keydown.escape.window="open = false">
+        <div x-show="open" x-cloak class="modal-overlay" @click.self="open = false">
+            <div class="modal modal-sm" x-transition>
+                <div class="modal-header">
+                    <h2 class="modal-title">Delete Asset Entry</h2>
+                    <button @click="open = false" class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete this asset entry?</p>
+                </div>
+                <div class="modal-footer">
+                    <button @click="open = false" class="btn btn-secondary">Cancel</button>
+                    <button @click="confirmDelete()" class="btn btn-danger">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+let cachedCryptos = null;
+
+async function fetchCryptos() {
+    if (cachedCryptos) return cachedCryptos;
+    try {
+        const response = await fetch('/api/ui/cryptos');
+        cachedCryptos = await response.json();
+        return cachedCryptos;
+    } catch (e) {
+        console.error('Failed to fetch cryptos:', e);
+        return [];
+    }
+}
+
+function cryptoSearch() {
+    return {
+        search: '',
+        cryptos: [],
+        filteredCryptos: [],
+        showDropdown: false,
+        highlightedIndex: 0,
+        async init() {
+            this.cryptos = await fetchCryptos();
+        },
+        onFocus() {
+            this.filterCryptos();
+            this.showDropdown = true;
+            this.highlightedIndex = 0;
+        },
+        onInput(value) {
+            this.search = value.toUpperCase();
+            this.filterCryptos();
+            this.highlightedIndex = 0;
+        },
+        filterCryptos() {
+            if (!this.search) {
+                this.filteredCryptos = this.cryptos.slice(0, 10);
+                return;
+            }
+            const term = this.search.toLowerCase();
+            this.filteredCryptos = this.cryptos
+                .filter(c => c.symbol.toLowerCase().includes(term) || c.name.toLowerCase().includes(term))
+                .slice(0, 10);
+        },
+        selectCrypto(crypto) {
+            this.search = crypto.symbol;
+            this.$data.symbol = crypto.symbol;
+            this.$data.name = crypto.name;
+            this.showDropdown = false;
+            this.$nextTick(() => {
+                document.getElementById('asset-amount').focus();
+            });
+        },
+        highlightNext() {
+            if (this.highlightedIndex < this.filteredCryptos.length - 1) {
+                this.highlightedIndex++;
+            }
+        },
+        highlightPrev() {
+            if (this.highlightedIndex > 0) {
+                this.highlightedIndex--;
+            }
+        },
+        selectHighlighted() {
+            if (this.filteredCryptos.length > 0) {
+                this.selectCrypto(this.filteredCryptos[this.highlightedIndex]);
+            }
+        }
+    }
+}
+
+function assetModal() {
+    return {
+        open: false,
+        isEdit: false,
+        assetEntryId: null,
+        type: '',
+        symbol: '',
+        name: '',
+        amount: '',
+        timestamp: '',
+        notes: '',
+        openAdd() {
+            this.isEdit = false;
+            this.assetEntryId = null;
+            this.type = '';
+            this.symbol = '';
+            this.name = '';
+            this.amount = '';
+            this.timestamp = new Date().toISOString().slice(0, 16);
+            this.notes = '';
+            this.open = true;
+        },
+        openEdit(detail) {
+            this.isEdit = true;
+            this.assetEntryId = detail.id;
+            this.type = detail.type;
+            this.symbol = detail.symbol;
+            this.name = detail.name || '';
+            this.amount = detail.amount;
+            this.timestamp = detail.timestamp;
+            this.notes = detail.notes || '';
+            this.open = true;
+        },
+        submitForm(form) {
+            const url = this.isEdit
+                ? '/partials/assets/update/' + this.assetEntryId
+                : '/partials/assets/create';
+            const self = this;
+            htmx.ajax('POST', url, {
+                target: '#assets-table-container',
+                swap: 'innerHTML',
+                values: {
+                    type: this.type,
+                    symbol: this.symbol,
+                    name: this.name,
+                    amount: this.amount,
+                    timestamp: this.timestamp,
+                    notes: this.notes
+                }
+            }).then(() => {
+                self.open = false;
+                window.dispatchEvent(new CustomEvent('show-toast', {
+                    detail: { message: self.isEdit ? 'Asset updated' : 'Asset added', type: 'success' }
+                }));
+            });
+        }
+    }
+}
+
+function deleteAssetModal() {
+    return {
+        open: false,
+        assetEntryId: null,
+        openDelete(detail) {
+            this.assetEntryId = detail.id;
+            this.open = true;
+        },
+        confirmDelete() {
+            htmx.ajax('DELETE', '/partials/assets/delete/' + this.assetEntryId, {
+                target: '#assets-table-container',
+                swap: 'innerHTML'
+            }).then(() => {
+                this.open = false;
+                window.dispatchEvent(new CustomEvent('show-toast', {
+                    detail: { message: 'Asset entry deleted', type: 'success' }
+                }));
+            });
+        }
+    }
+}
+</script>
+{{end}}

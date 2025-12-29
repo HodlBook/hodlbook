@@ -1,0 +1,178 @@
+{{define "pie-chart"}}
+<div class="chart-container pie-chart" x-data="pieChart({{.Data}})" x-init="init()">
+    <canvas x-ref="canvas"></canvas>
+    {{if .ShowLegend}}
+    <div class="chart-legend">
+        <template x-for="(item, i) in data" :key="i">
+            <div class="legend-item">
+                <span class="legend-color" :style="'background-color: ' + colors[i % colors.length]"></span>
+                <span class="legend-label" x-text="item.label"></span>
+                <span class="legend-value" x-text="formatPercent(item.value)"></span>
+            </div>
+        </template>
+    </div>
+    {{end}}
+</div>
+{{end}}
+
+{{define "line-chart"}}
+<div class="chart-container line-chart" x-data="lineChart({{.Data}}, '{{.Label}}')" x-init="init()">
+    <div class="chart-header">
+        {{if .Title}}<h4>{{.Title}}</h4>{{end}}
+        {{if .TimeRanges}}
+        <div class="chart-controls">
+            {{range .TimeRanges}}
+            <button
+                @click="setRange('{{.Value}}')"
+                :class="{ 'active': range === '{{.Value}}' }"
+                class="btn btn-sm">
+                {{.Label}}
+            </button>
+            {{end}}
+        </div>
+        {{end}}
+    </div>
+    <canvas x-ref="canvas"></canvas>
+</div>
+{{end}}
+
+{{define "sparkline"}}
+<div class="sparkline" x-data="sparkline({{.Data}})" x-init="init()">
+    <canvas x-ref="canvas" width="80" height="24"></canvas>
+</div>
+{{end}}
+
+{{define "chart-scripts"}}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+const chartColors = [
+    '#f7931a', '#627eea', '#26a17b', '#2775ca', '#e84142',
+    '#8247e5', '#00d395', '#ff007a', '#2b6cb0', '#48bb78'
+];
+
+function pieChart(data) {
+    return {
+        data: data,
+        colors: chartColors,
+        chart: null,
+        init() {
+            const ctx = this.$refs.canvas.getContext('2d');
+            this.chart = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.map(d => d.label),
+                    datasets: [{
+                        data: data.map(d => d.value),
+                        backgroundColor: chartColors.slice(0, data.length),
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '70%',
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        },
+        formatPercent(v) {
+            return v.toFixed(1) + '%';
+        }
+    }
+}
+
+function lineChart(data, label) {
+    return {
+        data: data,
+        range: '30d',
+        chart: null,
+        init() {
+            const ctx = this.$refs.canvas.getContext('2d');
+            this.chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map(d => d.label),
+                    datasets: [{
+                        label: label,
+                        data: data.map(d => d.value),
+                        borderColor: '#f7931a',
+                        backgroundColor: 'rgba(247, 147, 26, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointRadius: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    scales: {
+                        x: {
+                            grid: { display: false },
+                            ticks: { maxTicksLimit: 6 }
+                        },
+                        y: {
+                            grid: { color: 'rgba(255,255,255,0.1)' },
+                            ticks: {
+                                callback: function(v) {
+                                    if (v >= 1000000) return '$' + Math.round(v/1000) + 'K';
+                                    if (v >= 1000) return '$' + Math.round(v);
+                                    return '$' + v.toFixed(2);
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        },
+        setRange(r) {
+            this.range = r;
+            htmx.ajax('GET', '{{.RefreshURL}}?range=' + r, {target: this.$el, swap: 'outerHTML'});
+        }
+    }
+}
+
+function sparkline(data) {
+    return {
+        data: data,
+        init() {
+            const ctx = this.$refs.canvas.getContext('2d');
+            const isPositive = data[data.length - 1] >= data[0];
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.map((_, i) => i),
+                    datasets: [{
+                        data: data,
+                        borderColor: isPositive ? '#48bb78' : '#e84142',
+                        borderWidth: 1.5,
+                        pointRadius: 0,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: false,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: { display: false },
+                        y: { display: false }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                }
+            });
+        }
+    }
+}
+</script>
+{{end}}

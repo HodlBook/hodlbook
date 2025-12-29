@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"hodlbook/pkg/common/prices"
+	"hodlbook/pkg/types/prices"
 )
 
 var (
@@ -34,16 +34,25 @@ func (c *PriceFetcher) Fetch(price *prices.Price) error {
 // all asset prices are shown in USD cents
 func (c *PriceFetcher) FetchMany(pairs ...*prices.Price) error {
 	ids := make([]string, 0)
-	vsCurrencies := make([]string, 0)
+	cryptoPairs := make([]*prices.Price, 0)
+
 	for _, pair := range pairs {
-		ids = append(ids, strings.ToLower(pair.FromAsset.Name))
-		vsCurrencies = append(vsCurrencies, "usd") // Normalize to USD
+		symbol := strings.ToUpper(pair.Asset.Symbol)
+		if symbol == "USD" || symbol == "USDT" || symbol == "USDC" {
+			pair.Value = 1.0
+			continue
+		}
+		ids = append(ids, strings.ToLower(pair.Asset.Name))
+		cryptoPairs = append(cryptoPairs, pair)
 	}
 
-	endpoint := fmt.Sprintf("%s/simple/price?ids=%s&vs_currencies=%s",
+	if len(ids) == 0 {
+		return nil
+	}
+
+	endpoint := fmt.Sprintf("%s/simple/price?ids=%s&vs_currencies=usd",
 		c.BaseURL,
 		strings.Join(ids, ","),
-		strings.Join(vsCurrencies, ","),
 	)
 
 	resp, err := c.Client.Get(endpoint)
@@ -61,12 +70,12 @@ func (c *PriceFetcher) FetchMany(pairs ...*prices.Price) error {
 		return fmt.Errorf("failed to decode response: %w", err)
 	}
 
-	for _, pair := range pairs {
-		priceValue, ok := result[strings.ToLower(pair.FromAsset.Name)]["usd"]
+	for _, pair := range cryptoPairs {
+		priceValue, ok := result[strings.ToLower(pair.Asset.Name)]["usd"]
 		if !ok {
-			return fmt.Errorf("price not found for asset: %s and currency: %s", pair.FromAsset.Name, "usd")
+			continue
 		}
-		pair.Value = uint64(priceValue * 100) // Convert to cents
+		pair.Value = priceValue
 	}
 
 	return nil
@@ -97,8 +106,8 @@ func (c *PriceFetcher) FetchAll() ([]prices.Price, error) {
 	pricesList := make([]prices.Price, 0)
 	for _, result := range results {
 		pricesList = append(pricesList, prices.Price{
-			FromAsset: prices.Asset{Name: result.ID, Symbol: result.Symbol},
-			Value:     uint64(result.Price * 100), // Convert to cents
+			Asset: prices.Asset{Name: result.ID, Symbol: strings.ToUpper(result.Symbol)},
+			Value: result.Price,
 		})
 	}
 

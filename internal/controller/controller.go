@@ -1,14 +1,52 @@
 package controller
 
-import "hodlbook/internal/repo"
+import (
+	"hodlbook/pkg/types/cache"
+	"hodlbook/pkg/types/pubsub"
+	"hodlbook/pkg/types/repo"
+	"log/slog"
+)
 
 type Controller struct {
-	repo *repo.Repository
+	logger          slog.Logger
+	repo            repo.Repository
+	priceCache      cache.Cache[string, float64]
+	assetCreatedPub pubsub.Publisher
 }
 
-func New(r *repo.Repository) (*Controller, error) {
-	if r == nil {
+type Option func(*Controller)
+
+func WithLogger(l slog.Logger) Option {
+	return func(c *Controller) {
+		c.logger = l
+	}
+}
+
+func WithRepository(r repo.Repository) Option {
+	return func(c *Controller) {
+		c.repo = r
+	}
+}
+
+func WithPriceCache(pc cache.Cache[string, float64]) Option {
+	return func(c *Controller) {
+		c.priceCache = pc
+	}
+}
+
+func WithAssetCreatedPublisher(p pubsub.Publisher) Option {
+	return func(c *Controller) {
+		c.assetCreatedPub = p
+	}
+}
+
+func New(opts ...Option) (*Controller, error) {
+	c := &Controller{}
+	for _, opt := range opts {
+		opt(c)
+	}
+	if c.repo == nil {
 		return nil, ErrNilRepository
 	}
-	return &Controller{repo: r}, nil
+	return c, nil
 }

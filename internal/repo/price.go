@@ -17,9 +17,9 @@ func (r *Repository) GetPriceByID(id int64) (*models.Price, error) {
 	return &price, nil
 }
 
-func (r *Repository) GetLatestPrice(assetID int64, currency string) (*models.Price, error) {
+func (r *Repository) GetLatestPrice(symbol, currency string) (*models.Price, error) {
 	var price models.Price
-	if err := r.db.Where("asset_id = ? AND currency = ?", assetID, currency).
+	if err := r.db.Where("symbol = ? AND currency = ?", symbol, currency).
 		Order("timestamp DESC").
 		First(&price).Error; err != nil {
 		return nil, err
@@ -27,17 +27,17 @@ func (r *Repository) GetLatestPrice(assetID int64, currency string) (*models.Pri
 	return &price, nil
 }
 
-func (r *Repository) GetPricesByAssetID(assetID int64) ([]models.Price, error) {
+func (r *Repository) GetPricesBySymbol(symbol string) ([]models.Price, error) {
 	var prices []models.Price
-	if err := r.db.Where("asset_id = ?", assetID).Order("timestamp DESC").Find(&prices).Error; err != nil {
+	if err := r.db.Where("symbol = ?", symbol).Order("timestamp DESC").Find(&prices).Error; err != nil {
 		return nil, err
 	}
 	return prices, nil
 }
 
-func (r *Repository) GetPricesByAssetAndCurrency(assetID int64, currency string) ([]models.Price, error) {
+func (r *Repository) GetPricesBySymbolAndCurrency(symbol, currency string) ([]models.Price, error) {
 	var prices []models.Price
-	if err := r.db.Where("asset_id = ? AND currency = ?", assetID, currency).
+	if err := r.db.Where("symbol = ? AND currency = ?", symbol, currency).
 		Order("timestamp DESC").
 		Find(&prices).Error; err != nil {
 		return nil, err
@@ -45,9 +45,9 @@ func (r *Repository) GetPricesByAssetAndCurrency(assetID int64, currency string)
 	return prices, nil
 }
 
-func (r *Repository) GetPricesByDateRange(assetID int64, currency string, startDate, endDate time.Time) ([]models.Price, error) {
+func (r *Repository) GetPricesByDateRange(symbol, currency string, startDate, endDate time.Time) ([]models.Price, error) {
 	var prices []models.Price
-	if err := r.db.Where("asset_id = ? AND currency = ? AND timestamp BETWEEN ? AND ?", assetID, currency, startDate, endDate).
+	if err := r.db.Where("symbol = ? AND currency = ? AND timestamp BETWEEN ? AND ?", symbol, currency, startDate, endDate).
 		Order("timestamp ASC").
 		Find(&prices).Error; err != nil {
 		return nil, err
@@ -65,4 +65,18 @@ func (r *Repository) DeletePrice(id int64) error {
 
 func (r *Repository) DeletePricesOlderThan(date time.Time) error {
 	return r.db.Where("timestamp < ?", date).Delete(&models.Price{}).Error
+}
+
+func (r *Repository) GetPriceAtTime(symbol, currency string, timestamp time.Time) (*models.Price, error) {
+	var prices []models.Price
+	if err := r.db.Where("symbol = ? AND currency = ? AND timestamp <= ?", symbol, currency, timestamp).
+		Order("timestamp DESC").
+		Limit(1).
+		Find(&prices).Error; err != nil {
+		return nil, err
+	}
+	if len(prices) == 0 {
+		return nil, nil
+	}
+	return &prices[0], nil
 }

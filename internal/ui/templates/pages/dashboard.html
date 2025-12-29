@@ -1,0 +1,114 @@
+{{define "content"}}
+<div class="dashboard">
+    <section class="dashboard-summary" hx-get="/partials/dashboard/summary" hx-trigger="load, every 60s" hx-swap="innerHTML">
+        <div class="summary-grid">
+            <div class="summary-card skeleton-card">
+                <div class="skeleton text" style="width: 40%;"></div>
+                <div class="skeleton text lg" style="width: 60%;"></div>
+            </div>
+            <div class="summary-card skeleton-card">
+                <div class="skeleton text" style="width: 40%;"></div>
+                <div class="skeleton text lg" style="width: 60%;"></div>
+            </div>
+            <div class="summary-card skeleton-card">
+                <div class="skeleton text" style="width: 40%;"></div>
+                <div class="skeleton text lg" style="width: 60%;"></div>
+            </div>
+            <div class="summary-card skeleton-card">
+                <div class="skeleton text" style="width: 40%;"></div>
+                <div class="skeleton text lg" style="width: 60%;"></div>
+            </div>
+        </div>
+    </section>
+
+    <div class="dashboard-grid">
+        <section class="dashboard-chart">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Portfolio Value</h3>
+                    <div class="chart-controls" x-data="{ range: '30d' }">
+                        <button @click="range = '7d'" :class="{ 'active': range === '7d' }" class="btn btn-sm"
+                            hx-get="/partials/dashboard/chart?range=7d" hx-target="#portfolio-chart" hx-swap="innerHTML">7D</button>
+                        <button @click="range = '30d'" :class="{ 'active': range === '30d' }" class="btn btn-sm"
+                            hx-get="/partials/dashboard/chart?range=30d" hx-target="#portfolio-chart" hx-swap="innerHTML">30D</button>
+                        <button @click="range = '90d'" :class="{ 'active': range === '90d' }" class="btn btn-sm"
+                            hx-get="/partials/dashboard/chart?range=90d" hx-target="#portfolio-chart" hx-swap="innerHTML">90D</button>
+                        <button @click="range = '1y'" :class="{ 'active': range === '1y' }" class="btn btn-sm"
+                            hx-get="/partials/dashboard/chart?range=365d" hx-target="#portfolio-chart" hx-swap="innerHTML">1Y</button>
+                        <button @click="range = 'all'" :class="{ 'active': range === 'all' }" class="btn btn-sm"
+                            hx-get="/partials/dashboard/chart?range=all" hx-target="#portfolio-chart" hx-swap="innerHTML">ALL</button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="portfolio-chart" hx-get="/partials/dashboard/chart?range=30d" hx-trigger="load" hx-swap="innerHTML">
+                        <div class="chart-skeleton">
+                            <div class="skeleton chart"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="resize-handle" x-data="resizableGrid('chartWidth')" @mousedown="startResize" :class="{ 'dragging': dragging }"></div>
+
+        <section class="dashboard-allocation">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Allocation</h3>
+                </div>
+                <div class="card-body">
+                    <div id="allocation-chart" hx-get="/partials/dashboard/allocation" hx-trigger="load" hx-swap="innerHTML">
+                        <div class="chart-skeleton">
+                            <div class="skeleton chart circle"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <div class="resize-handle-horizontal" x-data="resizableHeight('chartHeight', '--chart-height', 270, 170, 400)" @mousedown="startResize" :class="{ 'dragging': dragging }"></div>
+
+    <div class="dashboard-grid">
+        <section class="dashboard-holdings">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Holdings</h3>
+                    <a href="/portfolio" class="btn btn-sm btn-link">View All</a>
+                </div>
+                <div class="card-body">
+                    <div id="holdings-table" hx-get="/partials/dashboard/holdings" hx-trigger="load, every 60s" hx-swap="innerHTML">
+                        <div class="skeleton-table">
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <div class="resize-handle" x-data="resizableGrid('chartWidth')" @mousedown="startResize" :class="{ 'dragging': dragging }"></div>
+
+        <section class="dashboard-transactions">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Recent Transactions</h3>
+                    <a href="/exchanges" class="btn btn-sm btn-link">View All</a>
+                </div>
+                <div class="card-body">
+                    <div id="recent-transactions" hx-get="/partials/dashboard/transactions" hx-trigger="load" hx-swap="innerHTML">
+                        <div class="skeleton-table">
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
+</div>
+{{end}}
+
+{{block "scripts" .}}{{end}}

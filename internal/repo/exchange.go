@@ -6,13 +6,13 @@ import (
 )
 
 type ExchangeFilter struct {
-	FromAssetID *int64
-	ToAssetID   *int64
-	AssetID     *int64
-	StartDate   *time.Time
-	EndDate     *time.Time
-	Limit       int
-	Offset      int
+	FromSymbol *string
+	ToSymbol   *string
+	Symbol     *string
+	StartDate  *time.Time
+	EndDate    *time.Time
+	Limit      int
+	Offset     int
 }
 
 type ExchangeListResult struct {
@@ -42,25 +42,25 @@ func (r *Repository) GetAllExchanges() ([]models.Exchange, error) {
 	return exchanges, nil
 }
 
-func (r *Repository) GetExchangesByAssetID(assetID int64) ([]models.Exchange, error) {
+func (r *Repository) GetExchangesBySymbol(symbol string) ([]models.Exchange, error) {
 	var exchanges []models.Exchange
-	if err := r.db.Where("from_asset_id = ? OR to_asset_id = ?", assetID, assetID).Order("timestamp DESC").Find(&exchanges).Error; err != nil {
+	if err := r.db.Where("from_symbol = ? OR to_symbol = ?", symbol, symbol).Order("timestamp DESC").Find(&exchanges).Error; err != nil {
 		return nil, err
 	}
 	return exchanges, nil
 }
 
-func (r *Repository) GetExchangesByFromAssetID(assetID int64) ([]models.Exchange, error) {
+func (r *Repository) GetExchangesByFromSymbol(symbol string) ([]models.Exchange, error) {
 	var exchanges []models.Exchange
-	if err := r.db.Where("from_asset_id = ?", assetID).Order("timestamp DESC").Find(&exchanges).Error; err != nil {
+	if err := r.db.Where("from_symbol = ?", symbol).Order("timestamp DESC").Find(&exchanges).Error; err != nil {
 		return nil, err
 	}
 	return exchanges, nil
 }
 
-func (r *Repository) GetExchangesByToAssetID(assetID int64) ([]models.Exchange, error) {
+func (r *Repository) GetExchangesByToSymbol(symbol string) ([]models.Exchange, error) {
 	var exchanges []models.Exchange
-	if err := r.db.Where("to_asset_id = ?", assetID).Order("timestamp DESC").Find(&exchanges).Error; err != nil {
+	if err := r.db.Where("to_symbol = ?", symbol).Order("timestamp DESC").Find(&exchanges).Error; err != nil {
 		return nil, err
 	}
 	return exchanges, nil
@@ -82,17 +82,42 @@ func (r *Repository) DeleteExchange(id int64) error {
 	return r.db.Delete(&models.Exchange{}, id).Error
 }
 
+func (r *Repository) GetUniqueExchangeSymbols() ([]string, error) {
+	var fromSymbols, toSymbols []string
+
+	if err := r.db.Model(&models.Exchange{}).Distinct("from_symbol").Pluck("from_symbol", &fromSymbols).Error; err != nil {
+		return nil, err
+	}
+	if err := r.db.Model(&models.Exchange{}).Distinct("to_symbol").Pluck("to_symbol", &toSymbols).Error; err != nil {
+		return nil, err
+	}
+
+	symbolSet := make(map[string]bool)
+	for _, s := range fromSymbols {
+		symbolSet[s] = true
+	}
+	for _, s := range toSymbols {
+		symbolSet[s] = true
+	}
+
+	symbols := make([]string, 0, len(symbolSet))
+	for s := range symbolSet {
+		symbols = append(symbols, s)
+	}
+	return symbols, nil
+}
+
 func (r *Repository) ListExchanges(filter ExchangeFilter) (*ExchangeListResult, error) {
 	query := r.db.Model(&models.Exchange{})
 
-	if filter.AssetID != nil {
-		query = query.Where("from_asset_id = ? OR to_asset_id = ?", *filter.AssetID, *filter.AssetID)
+	if filter.Symbol != nil {
+		query = query.Where("from_symbol = ? OR to_symbol = ?", *filter.Symbol, *filter.Symbol)
 	} else {
-		if filter.FromAssetID != nil {
-			query = query.Where("from_asset_id = ?", *filter.FromAssetID)
+		if filter.FromSymbol != nil {
+			query = query.Where("from_symbol = ?", *filter.FromSymbol)
 		}
-		if filter.ToAssetID != nil {
-			query = query.Where("to_asset_id = ?", *filter.ToAssetID)
+		if filter.ToSymbol != nil {
+			query = query.Where("to_symbol = ?", *filter.ToSymbol)
 		}
 	}
 	if filter.StartDate != nil {
