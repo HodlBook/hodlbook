@@ -6,6 +6,18 @@ DATE=$(shell date -u +"%Y-%m-%dT%H:%M:%SZ")
 LDFLAGS=-ldflags "-s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.date=$(DATE)"
 NEW_VERSION=
 
+# Push changes and tags to Git
+push-git:
+	@if [ -z "$(NEW_VERSION)" ]; then \
+		echo "Error: NEW_VERSION is required."; \
+		exit 1; \
+	fi
+	@echo "Pushing changes and tag $(NEW_VERSION) to GitHub..."
+	git push origin master
+	git push origin $(NEW_VERSION)
+	@echo "Changes and tag pushed to GitHub successfully."
+	@echo "Create a release at: https://github.com/actionsum/actionsum/releases/new?tag=$(NEW_VERSION)"
+
 bump-version:
 	@echo "Running tests..."; \
 	if ! make test; then \
@@ -45,7 +57,7 @@ bump-version:
 	git add .; \
 	git commit -m "Bump version to $$NEW_VERSION"; \
 	git tag $$NEW_VERSION; \
-	#$(MAKE) push-git NEW_VERSION=$$NEW_VERSION; \
+	$(MAKE) push-git NEW_VERSION=$$NEW_VERSION; \
 	echo "Version bumped to $$NEW_VERSION, tagged, and pushed."
 
 test:
