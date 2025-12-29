@@ -41,4 +41,4 @@ jobs:
     - name: Build
       env:
         CGO_ENABLED: 1
-      run: go build -v -o hodlbook ./
+      run: go build -o hodlbook cmd/main.go

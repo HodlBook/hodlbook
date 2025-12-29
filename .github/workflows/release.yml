@@ -30,8 +30,7 @@ jobs:
     - name: Build binary
       env:
         CGO_ENABLED: 1
-      run: |
-        go build -v -o hodlbook -ldflags "-s -w" ./
+      run: go build -o hodlbook cmd/main.go
 
     - name: Create Release
       uses: softprops/action-gh-release@v1
