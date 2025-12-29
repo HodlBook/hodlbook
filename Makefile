@@ -56,7 +56,7 @@ bump-version:
 	echo "const Date = \"$(DATE)\"" >> version/version.go; \
 	git add .; \
 	git commit -m "Bump version to $$NEW_VERSION"; \
-	BRANCH_NAME="$$NEW_VERSION"; \
+	BRANCH_NAME="release/$$NEW_VERSION"; \
 	git checkout -b $$BRANCH_NAME; \
 	git push origin $$BRANCH_NAME; \
 	echo "Version bumped to $$NEW_VERSION and pushed to branch $$BRANCH_NAME. Please create a pull request."
