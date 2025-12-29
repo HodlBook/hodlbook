@@ -49,6 +49,8 @@
             </div>
         </section>
 
+        <div class="resize-handle" x-data="resizableGrid('chartWidth')" @mousedown="startResize" :class="{ 'dragging': dragging }"></div>
+
         <section class="dashboard-allocation">
             <div class="card">
                 <div class="card-header">
@@ -64,6 +66,8 @@
             </div>
         </section>
     </div>
+
+    <div class="resize-handle-horizontal" x-data="resizableHeight('chartHeight', '--chart-height', 270, 180, 400)" @mousedown="startResize" :class="{ 'dragging': dragging }"></div>
 
     <div class="dashboard-grid">
         <section class="dashboard-holdings">
@@ -84,11 +88,13 @@
             </div>
         </section>
 
+        <div class="resize-handle" x-data="resizableGrid('chartWidth')" @mousedown="startResize" :class="{ 'dragging': dragging }"></div>
+
         <section class="dashboard-transactions">
             <div class="card">
                 <div class="card-header">
                     <h3 class="card-title">Recent Transactions</h3>
-                    <a href="/transactions" class="btn btn-sm btn-link">View All</a>
+                    <a href="/exchanges" class="btn btn-sm btn-link">View All</a>
                 </div>
                 <div class="card-body">
                     <div id="recent-transactions" hx-get="/partials/dashboard/transactions" hx-trigger="load" hx-swap="innerHTML">

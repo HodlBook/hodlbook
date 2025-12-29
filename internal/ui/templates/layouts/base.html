@@ -12,7 +12,7 @@
     <script src="/static/js/htmx.min.js" defer></script>
     <script src="/static/js/alpine.min.js" defer></script>
 </head>
-<body x-data="{ sidebarOpen: true }" class="app">
+<body x-data="{ sidebarOpen: true }" class="app" x-init="initSettings()">
     {{template "sidebar" .}}
 
     <main class="main-content" :class="{ 'sidebar-collapsed': !sidebarOpen }">
@@ -25,11 +25,128 @@
         {{template "toast" .}}
     </main>
 
+    {{template "settings-fab" .}}
+
     {{block "scripts" .}}{{end}}
     <script>
     document.body.addEventListener('htmx:afterSwap', function(event) {
         Alpine.initTree(event.detail.target);
     });
+
+    function initSettings() {
+        const savedTheme = localStorage.getItem('theme') || 'dark';
+        const savedScale = parseFloat(localStorage.getItem('uiScale')) || 1;
+        const chartHeight = localStorage.getItem('chartHeight') || '270';
+        const chartWidth = localStorage.getItem('chartWidth') || '66';
+        const allocationSize = localStorage.getItem('allocationSize') || '162';
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        document.documentElement.style.setProperty('--ui-scale', savedScale);
+        document.documentElement.style.setProperty('--chart-height', chartHeight + 'px');
+        document.documentElement.style.setProperty('--chart-width', chartWidth + '%');
+        document.documentElement.style.setProperty('--allocation-size', allocationSize + 'px');
+    }
+
+    function resizableGrid(storageKey) {
+        return {
+            dragging: false,
+            startX: 0,
+            startWidth: 0,
+            grid: null,
+            firstSection: null,
+            moveHandler: null,
+            upHandler: null,
+            startResize(e) {
+                e.preventDefault();
+                this.dragging = true;
+                this.startX = e.clientX;
+                const handle = e.currentTarget;
+                this.grid = handle.parentElement;
+                this.firstSection = this.grid.querySelector('section:first-child');
+                this.startWidth = this.firstSection.offsetWidth;
+                const self = this;
+                this.moveHandler = function(ev) { self.onResize(ev); };
+                this.upHandler = function(ev) { self.stopResize(ev); };
+                document.addEventListener('mousemove', this.moveHandler);
+                document.addEventListener('mouseup', this.upHandler);
+                document.body.style.cursor = 'col-resize';
+                document.body.style.userSelect = 'none';
+            },
+            onResize(e) {
+                if (!this.dragging) return;
+                const delta = e.clientX - this.startX;
+                const gridWidth = this.grid.offsetWidth;
+                const newWidth = this.startWidth + delta;
+                const minWidth = 300;
+                const maxWidth = gridWidth - 200;
+                if (newWidth >= minWidth && newWidth <= maxWidth) {
+                    const percent = Math.round((newWidth / gridWidth) * 100);
+                    document.documentElement.style.setProperty('--chart-width', percent + '%');
+                    localStorage.setItem(storageKey, percent);
+                    this.resizeCharts();
+                }
+            },
+            stopResize() {
+                this.dragging = false;
+                document.removeEventListener('mousemove', this.moveHandler);
+                document.removeEventListener('mouseup', this.upHandler);
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            },
+            resizeCharts() {
+                document.querySelectorAll('.chart-wrapper canvas, .allocation-chart canvas').forEach(canvas => {
+                    const chart = Chart.getChart(canvas);
+                    if (chart) chart.resize();
+                });
+            }
+        }
+    }
+
+    function resizableHeight(storageKey, cssVar, defaultVal, min, max) {
+        return {
+            dragging: false,
+            startY: 0,
+            startHeight: 0,
+            moveHandler: null,
+            upHandler: null,
+            startResize(e) {
+                e.preventDefault();
+                this.dragging = true;
+                this.startY = e.clientY;
+                const currentVal = getComputedStyle(document.documentElement).getPropertyValue(cssVar);
+                this.startHeight = parseInt(currentVal) || defaultVal;
+                const self = this;
+                this.moveHandler = function(ev) { self.onResize(ev); };
+                this.upHandler = function(ev) { self.stopResize(ev); };
+                document.addEventListener('mousemove', this.moveHandler);
+                document.addEventListener('mouseup', this.upHandler);
+                document.body.style.cursor = 'row-resize';
+                document.body.style.userSelect = 'none';
+            },
+            onResize(e) {
+                if (!this.dragging) return;
+                const delta = e.clientY - this.startY;
+                const newHeight = this.startHeight + delta;
+                if (newHeight >= min && newHeight <= max) {
+                    document.documentElement.style.setProperty(cssVar, newHeight + 'px');
+                    localStorage.setItem(storageKey, newHeight);
+                    this.resizeCharts();
+                }
+            },
+            stopResize() {
+                this.dragging = false;
+                document.removeEventListener('mousemove', this.moveHandler);
+                document.removeEventListener('mouseup', this.upHandler);
+                document.body.style.cursor = '';
+                document.body.style.userSelect = '';
+            },
+            resizeCharts() {
+                document.querySelectorAll('.chart-wrapper canvas').forEach(canvas => {
+                    const chart = Chart.getChart(canvas);
+                    if (chart) chart.resize();
+                });
+            }
+        }
+    }
     </script>
 </body>
 </html>
@@ -159,6 +276,118 @@ function toast() {
         dismiss(index) {
             this.toasts[index].visible = false;
             setTimeout(() => { this.toasts.splice(index, 1); }, 300);
+        }
+    }
+}
+</script>
+{{end}}
+
+{{define "settings-fab"}}
+<div class="settings-fab" x-data="settingsFab()" @click.outside="open = false">
+    <div class="settings-popup" x-show="open" x-cloak x-transition>
+        <div class="settings-section">
+            <span class="settings-label">UI Scale</span>
+            <div class="settings-row">
+                <button class="zoom-btn" @click="zoomOut()" :disabled="scale <= 0.5">-</button>
+                <span class="zoom-value" x-text="Math.round(scale * 100) + '%'"></span>
+                <button class="zoom-btn" @click="zoomIn()" :disabled="scale >= 2.0">+</button>
+            </div>
+        </div>
+        <div class="settings-section">
+            <span class="settings-label">Theme</span>
+            <div class="theme-toggle">
+                <button class="theme-btn" :class="{ 'active': theme === 'dark' }" @click="setTheme('dark')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+                    </svg>
+                    Dark
+                </button>
+                <button class="theme-btn" :class="{ 'active': theme === 'light' }" @click="setTheme('light')">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="5"/>
+                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                    </svg>
+                    Light
+                </button>
+            </div>
+        </div>
+        <div class="settings-divider"></div>
+        <div class="settings-section">
+            <span class="settings-label">Layout</span>
+            <div class="settings-slider">
+                <div class="slider-header">
+                    <span>Chart Height</span>
+                    <span class="slider-value" x-text="chartHeight + 'px'"></span>
+                </div>
+                <input type="range" min="180" max="400" step="10" x-model="chartHeight" @input="applyLayout()">
+            </div>
+            <div class="settings-slider" style="margin-top: 12px;">
+                <div class="slider-header">
+                    <span>Chart Width</span>
+                    <span class="slider-value" x-text="chartWidth + '%'"></span>
+                </div>
+                <input type="range" min="40" max="85" step="1" x-model="chartWidth" @input="applyLayout()">
+            </div>
+            <div class="settings-slider" style="margin-top: 12px;">
+                <div class="slider-header">
+                    <span>Allocation Size</span>
+                    <span class="slider-value" x-text="allocationSize + 'px'"></span>
+                </div>
+                <input type="range" min="120" max="220" step="10" x-model="allocationSize" @input="applyLayout()">
+            </div>
+        </div>
+    </div>
+    <button class="settings-fab-btn" @click="open = !open">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+        </svg>
+    </button>
+</div>
+<script>
+function settingsFab() {
+    return {
+        open: false,
+        scale: parseFloat(localStorage.getItem('uiScale')) || 1,
+        theme: localStorage.getItem('theme') || 'dark',
+        chartHeight: parseInt(localStorage.getItem('chartHeight')) || 270,
+        chartWidth: parseInt(localStorage.getItem('chartWidth')) || 66,
+        allocationSize: parseInt(localStorage.getItem('allocationSize')) || 162,
+        zoomIn() {
+            if (this.scale < 2.0) {
+                this.scale = Math.round((this.scale + 0.1) * 10) / 10;
+                this.applyScale();
+            }
+        },
+        zoomOut() {
+            if (this.scale > 0.5) {
+                this.scale = Math.round((this.scale - 0.1) * 10) / 10;
+                this.applyScale();
+            }
+        },
+        applyScale() {
+            document.documentElement.style.setProperty('--ui-scale', this.scale);
+            localStorage.setItem('uiScale', this.scale);
+        },
+        setTheme(theme) {
+            this.theme = theme;
+            document.documentElement.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+        },
+        applyLayout() {
+            document.documentElement.style.setProperty('--chart-height', this.chartHeight + 'px');
+            document.documentElement.style.setProperty('--chart-width', this.chartWidth + '%');
+            document.documentElement.style.setProperty('--allocation-size', this.allocationSize + 'px');
+            localStorage.setItem('chartHeight', this.chartHeight);
+            localStorage.setItem('chartWidth', this.chartWidth);
+            localStorage.setItem('allocationSize', this.allocationSize);
+            this.resizeCharts();
+        },
+        resizeCharts() {
+            document.querySelectorAll('.chart-wrapper canvas, .allocation-chart canvas').forEach(canvas => {
+                const chart = Chart.getChart(canvas);
+                if (chart) chart.resize();
+            });
         }
     }
 }

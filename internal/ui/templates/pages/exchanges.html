@@ -1,10 +1,6 @@
 {{define "content"}}
 <div class="exchanges-page">
     <section class="page-header">
-        <div class="page-header-content">
-            <h2>Exchanges</h2>
-            <p class="text-muted">Record asset-to-asset exchanges and swaps.</p>
-        </div>
         <div class="page-header-actions">
             <button class="btn btn-secondary"
                 hx-post="/partials/exchanges/refresh-prices"
@@ -156,10 +152,13 @@
                                 <span class="value-hint" x-show="toValueInFrom > 0" x-text="'= ' + formatNumber(toValueInFrom) + ' ' + fromSymbol"></span>
                             </div>
                             <div class="form-group" x-data="cryptoSearchTo()" x-init="$watch('toSymbol', v => { search = v; onSymbolSelected(v); })">
-                                <label>Symbol <span class="required">*</span></label>
+                                <div class="label-with-hint">
+                                    <label>Symbol <span class="required">*</span></label>
+                                    <span class="crypto-name-hint" x-show="toSymbolCoinId" x-text="toSymbolCoinId"></span>
+                                </div>
                                 <div class="crypto-select" @click.outside="showDropdown = false">
                                     <input type="text" name="to_symbol" class="form-control" required
-                                        x-model="search" placeholder="Search crypto..."
+                                        x-model="search" placeholder="Search by symbol or name..."
                                         @input="onInput($event.target.value)"
                                         @focus="onFocus()"
                                         @keydown.arrow-down.prevent="highlightNext()"
@@ -183,7 +182,11 @@
                             <div class="form-group">
                                 <div class="label-with-hint">
                                     <label>Price <span x-show="fromSymbol" x-text="'(' + fromSymbol + ')'"></span></label>
-                                    <span class="usd-hint" x-show="toSymbolUsdPrice > 0" x-text="'$' + formatUsd(toSymbolUsdPrice)"></span>
+                                    <a class="usd-hint"
+                                        x-show="toSymbolUsdPrice > 0 && toSymbolCoinId"
+                                        :href="'https://www.coingecko.com/en/coins/' + toSymbolCoinId"
+                                        target="_blank"
+                                        x-text="'$' + formatUsd(toSymbolUsdPrice)"></a>
                                 </div>
                                 <input type="number" name="to_price" class="form-control"
                                     step="any" min="0" x-model="toPrice" placeholder="0.00">
@@ -273,6 +276,12 @@ function getCryptoPrice(symbol) {
     if (!cachedExchangeCryptos || !symbol) return 0;
     const crypto = cachedExchangeCryptos.find(c => c.symbol === symbol);
     return crypto ? crypto.price : 0;
+}
+
+function getCryptoCoinId(symbol) {
+    if (!cachedExchangeCryptos || !symbol) return '';
+    const crypto = cachedExchangeCryptos.find(c => c.symbol === symbol);
+    return crypto ? crypto.name : '';
 }
 
 function cryptoSearchFrom() {
@@ -378,6 +387,7 @@ function cryptoSearchTo() {
             this.search = crypto.symbol;
             this.$data.toSymbol = crypto.symbol;
             this.$data.toSymbolUsdPrice = crypto.price || 0;
+            this.$data.toSymbolCoinId = crypto.name || '';
             this.calcPriceInFromAsset(crypto.price);
             this.showDropdown = false;
         },
@@ -393,6 +403,7 @@ function cryptoSearchTo() {
             const crypto = this.cryptos.find(c => c.symbol === symbol);
             if (crypto && crypto.price) {
                 this.$data.toSymbolUsdPrice = crypto.price;
+                this.$data.toSymbolCoinId = crypto.name || '';
                 this.calcPriceInFromAsset(crypto.price);
             }
         },
@@ -437,6 +448,7 @@ function exchangeModal() {
         toAmount: '',
         toPrice: '',
         toSymbolUsdPrice: 0,
+        toSymbolCoinId: '',
         fromSymbolUsdPrice: 0,
         fee: '',
         feeCurrency: '',
@@ -554,6 +566,7 @@ function exchangeModal() {
             this.toAmount = '';
             this.toPrice = '';
             this.toSymbolUsdPrice = 0;
+            this.toSymbolCoinId = '';
             this.fromSymbolUsdPrice = 0;
             this.fee = '';
             this.feeCurrency = '';
@@ -570,6 +583,7 @@ function exchangeModal() {
             this.fromAmount = detail.from_amount;
             this.toSymbol = detail.to_symbol;
             this.toSymbolUsdPrice = getCryptoPrice(detail.to_symbol);
+            this.toSymbolCoinId = getCryptoCoinId(detail.to_symbol);
             this.toAmount = detail.to_amount;
             this.toPrice = '';
             this.fee = detail.fee || '';

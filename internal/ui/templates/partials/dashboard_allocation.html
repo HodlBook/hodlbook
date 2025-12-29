@@ -1,7 +1,7 @@
 {{if .Items}}
 <div class="allocation-container" x-data="allocationChart()" x-init="init()" data-chart-items='[{{range $i, $item := .Items}}{{if $i}},{{end}}{"label":"{{$item.Symbol}}","value":{{$item.Percentage}},"color":"{{$item.Color}}"}{{end}}]'>
     <div class="allocation-chart">
-        <canvas x-ref="canvas" width="180" height="180"></canvas>
+        <canvas x-ref="canvas" width="162" height="162"></canvas>
         <div class="allocation-center">
             <span class="allocation-total">{{.TotalValue}}</span>
         </div>

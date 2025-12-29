@@ -58,7 +58,7 @@ func (r *Repository) GetAssetsByType(txType string) ([]models.Asset, error) {
 }
 
 func (r *Repository) UpdateAsset(asset *models.Asset) error {
-	return r.db.Save(asset).Error
+	return r.db.Model(asset).Updates(asset).Error
 }
 
 func (r *Repository) DeleteAsset(id int64) error {

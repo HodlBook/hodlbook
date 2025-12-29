@@ -55,7 +55,7 @@ type PriceRow struct {
 }
 
 func (h *PricesHandler) Table(c *gin.Context) {
-	symbols, _ := h.repo.GetUniqueSymbols()
+	symbols := h.getAllSymbols()
 	holdings := h.calculateHoldings()
 
 	symbolNames := make(map[string]string)
@@ -123,4 +123,24 @@ func (h *PricesHandler) calculateHoldings() map[string]float64 {
 	}
 
 	return holdings
+}
+
+func (h *PricesHandler) getAllSymbols() []string {
+	symbolSet := make(map[string]bool)
+
+	assetSymbols, _ := h.repo.GetUniqueSymbols()
+	for _, s := range assetSymbols {
+		symbolSet[s] = true
+	}
+
+	exchangeSymbols, _ := h.repo.GetUniqueExchangeSymbols()
+	for _, s := range exchangeSymbols {
+		symbolSet[s] = true
+	}
+
+	symbols := make([]string, 0, len(symbolSet))
+	for s := range symbolSet {
+		symbols = append(symbols, s)
+	}
+	return symbols
 }

@@ -44,52 +44,72 @@
         </div>
     </section>
 
-    <section class="portfolio-holdings">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">Holdings</h3>
-                <div class="table-controls" x-data="{ sortBy: 'value', sortDir: 'desc' }">
-                    <select class="form-control form-control-sm"
-                        hx-get="/partials/portfolio/holdings"
-                        hx-target="#holdings-table-container"
-                        hx-include="[name='sort']"
-                        name="sort"
-                        @change="sortBy = $event.target.value">
-                        <option value="value" selected>Sort by Value</option>
-                        <option value="amount">Sort by Amount</option>
-                        <option value="change">Sort by Change</option>
-                        <option value="allocation">Sort by Allocation</option>
-                        <option value="symbol">Sort by Symbol</option>
-                    </select>
-                </div>
-            </div>
-            <div class="card-body">
-                <div id="holdings-table-container" hx-get="/partials/portfolio/holdings?sort=value" hx-trigger="load, every 60s" hx-swap="innerHTML">
-                    <div class="skeleton-table">
-                        <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
-                        <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
-                        <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
+    <div class="resize-handle-horizontal" x-data="resizableHeight('chartHeight', '--chart-height', 270, 180, 400)" @mousedown="startResize" :class="{ 'dragging': dragging }"></div>
 
-    <section class="portfolio-performance">
-        <div class="card">
-            <div class="card-header">
-                <h3 class="card-title">Performance by Asset</h3>
-            </div>
-            <div class="card-body">
-                <div id="performance-table-container" hx-get="/partials/portfolio/performance" hx-trigger="load, every 60s" hx-swap="innerHTML">
-                    <div class="skeleton-table">
-                        <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
-                        <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+    <div class="portfolio-grid">
+        <section class="portfolio-holdings">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Holdings</h3>
+                    <div class="table-controls" x-data="{ sortBy: 'value', sortDir: 'desc' }">
+                        <select class="form-control form-control-sm"
+                            hx-get="/partials/portfolio/holdings"
+                            hx-target="#holdings-table-container"
+                            hx-include="[name='sort']"
+                            name="sort"
+                            @change="sortBy = $event.target.value">
+                            <option value="value" selected>Sort by Value</option>
+                            <option value="amount">Sort by Amount</option>
+                            <option value="change">Sort by Change</option>
+                            <option value="allocation">Sort by Allocation</option>
+                            <option value="symbol">Sort by Symbol</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="holdings-table-container" hx-get="/partials/portfolio/holdings?sort=value" hx-trigger="load, every 60s" hx-swap="innerHTML">
+                        <div class="skeleton-table">
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                        </div>
                     </div>
                 </div>
             </div>
-        </div>
-    </section>
+        </section>
+
+        <div class="resize-handle" x-data="resizableGrid('chartWidth')" @mousedown="startResize" :class="{ 'dragging': dragging }"></div>
+
+        <section class="portfolio-performance">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">Performance by Asset</h3>
+                    <div class="table-controls">
+                        <select class="form-control form-control-sm"
+                            hx-get="/partials/portfolio/performance"
+                            hx-target="#performance-table-container"
+                            hx-include="[name='perf_sort']"
+                            name="perf_sort">
+                            <option value="value" selected>Sort by Value</option>
+                            <option value="pnl">Sort by P/L</option>
+                            <option value="pnl_pct">Sort by P/L %</option>
+                            <option value="symbol">Sort by Symbol</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div id="performance-table-container" hx-get="/partials/portfolio/performance?sort=value" hx-trigger="load, every 60s" hx-swap="innerHTML">
+                        <div class="skeleton-table">
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
 </div>
 {{end}}
 

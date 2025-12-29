@@ -1,10 +1,6 @@
 {{define "content"}}
 <div class="assets-page">
     <section class="page-header">
-        <div class="page-header-content">
-            <h2>Assets</h2>
-            <p class="text-muted">Record and manage your cryptocurrency holdings.</p>
-        </div>
         <div class="page-header-actions">
             <button class="btn btn-primary" @click="$dispatch('open-add-asset')">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -82,10 +78,9 @@
                     <h2 class="modal-title" x-text="isEdit ? 'Edit Asset' : 'Add Asset'"></h2>
                     <button @click="open = false" class="modal-close">&times;</button>
                 </div>
-                <form :hx-post="isEdit ? '/partials/assets/update/' + assetEntryId : '/partials/assets/create'"
+                <form @submit.prevent="submitForm($el)"
                       hx-target="#assets-table-container"
-                      hx-swap="innerHTML"
-                      @htmx:after-request="if(event.detail.successful) { open = false; $dispatch('show-toast', {message: isEdit ? 'Asset updated' : 'Asset added', type: 'success'}) }">
+                      hx-swap="innerHTML">
                     <div class="modal-body">
                         <div class="form-group">
                             <label for="asset-type">Type <span class="required">*</span></label>
@@ -273,6 +268,29 @@ function assetModal() {
             this.timestamp = detail.timestamp;
             this.notes = detail.notes || '';
             this.open = true;
+        },
+        submitForm(form) {
+            const url = this.isEdit
+                ? '/partials/assets/update/' + this.assetEntryId
+                : '/partials/assets/create';
+            const self = this;
+            htmx.ajax('POST', url, {
+                target: '#assets-table-container',
+                swap: 'innerHTML',
+                values: {
+                    type: this.type,
+                    symbol: this.symbol,
+                    name: this.name,
+                    amount: this.amount,
+                    timestamp: this.timestamp,
+                    notes: this.notes
+                }
+            }).then(() => {
+                self.open = false;
+                window.dispatchEvent(new CustomEvent('show-toast', {
+                    detail: { message: self.isEdit ? 'Asset updated' : 'Asset added', type: 'success' }
+                }));
+            });
         }
     }
 }

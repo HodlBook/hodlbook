@@ -152,6 +152,12 @@ Self-hosted crypto portfolio management application.
 - [x] Add exchange modal (from/to asset/amount, fee, timestamp, notes)
 - [x] Edit exchange modal
 - [x] Delete exchange confirmation modal
+- [x] Rate and Market Rate columns (ToAssetFromAsset format)
+- [x] P/L column per exchange (USD and %)
+- [x] Total P/L summary header
+- [x] Notes icon with hover tooltip
+- [x] Refresh Prices button
+- [x] Exchange symbols added to live price cache
 
 ### Prices Features (Completed)
 - [x] Price cards grid layout
@@ -162,6 +168,14 @@ Self-hosted crypto portfolio management application.
 
 ### Startup Improvements
 - [x] Immediate price fetch on service startup (no wait for first tick)
+
+### UI Fixes
+- [x] Fix portfolio: showing nothing
+- [x] Add exchanged assets to price panel display
+- [x] Fix allocation exhibition box
+- [x] Update recent transactions to include exchange from/to swaps
+- [x] Update holdings calc with live market prices
+- [x] Update performance by asset with live market prices
 
 ## Pending
 

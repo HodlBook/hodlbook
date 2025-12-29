@@ -230,6 +230,13 @@ func (h *AssetsPageHandler) Update(c *gin.Context) {
 		return
 	}
 
+	asset, err := h.repo.GetAssetByID(id)
+	if err != nil {
+		c.Header("HX-Trigger", `{"show-toast": {"message": "Asset not found", "type": "error"}}`)
+		h.Table(c)
+		return
+	}
+
 	var req CreateAssetRequest
 	if err := c.ShouldBind(&req); err != nil {
 		c.Header("HX-Trigger", `{"show-toast": {"message": "All required fields must be filled", "type": "error"}}`)
@@ -255,15 +262,12 @@ func (h *AssetsPageHandler) Update(c *gin.Context) {
 		timestamp = time.Now()
 	}
 
-	asset := &models.Asset{
-		ID:              id,
-		Symbol:          req.Symbol,
-		Name:            req.Name,
-		TransactionType: req.TransactionType,
-		Amount:          req.Amount,
-		Timestamp:       timestamp,
-		Notes:           req.Notes,
-	}
+	asset.Symbol = req.Symbol
+	asset.Name = req.Name
+	asset.TransactionType = req.TransactionType
+	asset.Amount = req.Amount
+	asset.Timestamp = timestamp
+	asset.Notes = req.Notes
 
 	if err := h.repo.UpdateAsset(asset); err != nil {
 		c.Header("HX-Trigger", `{"show-toast": {"message": "Failed to update asset entry", "type": "error"}}`)

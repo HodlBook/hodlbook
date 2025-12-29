@@ -106,7 +106,7 @@ func (c *PriceFetcher) FetchAll() ([]prices.Price, error) {
 	pricesList := make([]prices.Price, 0)
 	for _, result := range results {
 		pricesList = append(pricesList, prices.Price{
-			Asset: prices.Asset{Name: result.ID, Symbol: result.Symbol},
+			Asset: prices.Asset{Name: result.ID, Symbol: strings.ToUpper(result.Symbol)},
 			Value: result.Price,
 		})
 	}

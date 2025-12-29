@@ -53,6 +53,52 @@ func (c *Controller) calculateHoldings() (map[string]float64, error) {
 		}
 	}
 
+	exchanges, err := c.repo.GetAllExchanges()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, ex := range exchanges {
+		holdings[ex.FromSymbol] -= ex.FromAmount
+		holdings[ex.ToSymbol] += ex.ToAmount
+	}
+
+	return holdings, nil
+}
+
+func (c *Controller) calculateHoldingsAtDate(targetDate time.Time) (map[string]float64, error) {
+	holdings := make(map[string]float64)
+
+	assets, err := c.repo.GetAllAssets()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, asset := range assets {
+		if asset.Timestamp.After(targetDate) {
+			continue
+		}
+		switch asset.TransactionType {
+		case "deposit":
+			holdings[asset.Symbol] += asset.Amount
+		case "withdraw":
+			holdings[asset.Symbol] -= asset.Amount
+		}
+	}
+
+	exchanges, err := c.repo.GetAllExchanges()
+	if err != nil {
+		return nil, err
+	}
+
+	for _, ex := range exchanges {
+		if ex.Timestamp.After(targetDate) {
+			continue
+		}
+		holdings[ex.FromSymbol] -= ex.FromAmount
+		holdings[ex.ToSymbol] += ex.ToAmount
+	}
+
 	return holdings, nil
 }
 
@@ -331,12 +377,6 @@ func (c *Controller) PortfolioHistory(ctx *gin.Context) {
 		return
 	}
 
-	holdings, err := c.calculateHoldings()
-	if err != nil {
-		internalError(ctx, "failed to calculate holdings")
-		return
-	}
-
 	historicPrices := make(map[string]map[string]float64)
 	for _, symbol := range symbols {
 		history, err := c.repo.SelectAllBySymbol(symbol)
@@ -359,17 +399,28 @@ func (c *Controller) PortfolioHistory(ctx *gin.Context) {
 		date := now.AddDate(0, 0, -i)
 		dateStr := date.Format("2006-01-02")
 
+		endOfDay := time.Date(date.Year(), date.Month(), date.Day(), 23, 59, 59, 0, date.Location())
+		holdings, err := c.calculateHoldingsAtDate(endOfDay)
+		if err != nil {
+			continue
+		}
+
 		var dailyValue float64
 		for symbol, amount := range holdings {
 			if amount <= 0 {
 				continue
 			}
 
+			var price float64
 			if prices, ok := historicPrices[symbol]; ok {
-				if price, found := prices[dateStr]; found {
-					dailyValue += amount * price
+				if p, found := prices[dateStr]; found {
+					price = p
 				}
 			}
+			if price == 0 {
+				price, _ = c.priceCache.Get(symbol)
+			}
+			dailyValue += amount * price
 		}
 
 		historyPoints = append(historyPoints, HistoryPoint{

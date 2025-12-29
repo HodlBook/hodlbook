@@ -99,7 +99,6 @@ func (h *PortfolioHandler) Chart(c *gin.Context) {
 	days := parseDays(rangeParam)
 
 	symbols, _ := h.repo.GetUniqueSymbols()
-	holdings := h.calculateHoldings()
 
 	historicPrices := make(map[string]map[string]float64)
 	for _, symbol := range symbols {
@@ -118,12 +117,14 @@ func (h *PortfolioHandler) Chart(c *gin.Context) {
 	var labels []string
 	var values []float64
 	now := time.Now()
-	todayStr := now.Format("2006-01-02")
 
 	for i := days - 1; i >= 0; i-- {
 		date := now.AddDate(0, 0, -i)
 		dateStr := date.Format("2006-01-02")
 		labelStr := date.Format("Jan 2")
+
+		endOfDay := time.Date(date.Year(), date.Month(), date.Day(), 23, 59, 59, 0, date.Location())
+		holdings := h.calculateHoldingsAtDate(endOfDay)
 
 		var dailyValue float64
 		for symbol, amount := range holdings {
@@ -136,7 +137,7 @@ func (h *PortfolioHandler) Chart(c *gin.Context) {
 					price = p
 				}
 			}
-			if price == 0 && dateStr == todayStr {
+			if price == 0 {
 				price, _ = h.priceCache.Get(symbol)
 			}
 			dailyValue += amount * price
@@ -285,6 +286,8 @@ type PerformanceRow struct {
 }
 
 func (h *PortfolioHandler) Performance(c *gin.Context) {
+	sortBy := c.DefaultQuery("sort", c.DefaultQuery("perf_sort", "value"))
+
 	holdings, _ := h.calculatePortfolio()
 	assets, _ := h.repo.GetAllAssets()
 	costBasis := h.calculateCostBasis(assets)
@@ -324,9 +327,18 @@ func (h *PortfolioHandler) Performance(c *gin.Context) {
 		})
 	}
 
-	sort.Slice(rows, func(i, j int) bool {
-		return rows[i].ValueRaw > rows[j].ValueRaw
-	})
+	switch sortBy {
+	case "value":
+		sort.Slice(rows, func(i, j int) bool { return rows[i].ValueRaw > rows[j].ValueRaw })
+	case "pnl":
+		sort.Slice(rows, func(i, j int) bool { return rows[i].PnLRaw > rows[j].PnLRaw })
+	case "pnl_pct":
+		sort.Slice(rows, func(i, j int) bool { return rows[i].PnLPctRaw > rows[j].PnLPctRaw })
+	case "symbol":
+		sort.Slice(rows, func(i, j int) bool { return rows[i].Symbol < rows[j].Symbol })
+	default:
+		sort.Slice(rows, func(i, j int) bool { return rows[i].ValueRaw > rows[j].ValueRaw })
+	}
 
 	var totalPnLPct float64
 	if totalCost > 0 {
@@ -385,30 +397,106 @@ func (h *PortfolioHandler) calculatePortfolio() (holdings map[string]float64, to
 	return
 }
 
+type costBasisEvent struct {
+	timestamp time.Time
+	eventType string
+	asset     *models.Asset
+	exchange  *models.Exchange
+}
+
 func (h *PortfolioHandler) calculateCostBasis(assets []models.Asset) map[string]float64 {
 	costBasis := make(map[string]float64)
 	runningHoldings := make(map[string]float64)
 
-	sort.Slice(assets, func(i, j int) bool {
-		return assets[i].Timestamp.Before(assets[j].Timestamp)
+	var events []costBasisEvent
+	for i := range assets {
+		events = append(events, costBasisEvent{
+			timestamp: assets[i].Timestamp,
+			eventType: "asset",
+			asset:     &assets[i],
+		})
+	}
+
+	exchanges, _ := h.repo.GetAllExchanges()
+	for i := range exchanges {
+		events = append(events, costBasisEvent{
+			timestamp: exchanges[i].Timestamp,
+			eventType: "exchange",
+			exchange:  &exchanges[i],
+		})
+	}
+
+	sort.Slice(events, func(i, j int) bool {
+		return events[i].timestamp.Before(events[j].timestamp)
 	})
 
-	for _, asset := range assets {
-		switch asset.TransactionType {
-		case "deposit":
-			price, _ := h.priceCache.Get(asset.Symbol)
-			costBasis[asset.Symbol] += asset.Amount * price
-			runningHoldings[asset.Symbol] += asset.Amount
-		case "withdraw":
-			if runningHoldings[asset.Symbol] > 0 {
-				avgCost := costBasis[asset.Symbol] / runningHoldings[asset.Symbol]
-				costBasis[asset.Symbol] -= asset.Amount * avgCost
+	for _, event := range events {
+		switch event.eventType {
+		case "asset":
+			asset := event.asset
+			switch asset.TransactionType {
+			case "deposit":
+				price := h.getPriceAtTime(asset.Symbol, asset.Timestamp)
+				costBasis[asset.Symbol] += asset.Amount * price
+				runningHoldings[asset.Symbol] += asset.Amount
+			case "withdraw":
+				if runningHoldings[asset.Symbol] > 0 {
+					avgCost := costBasis[asset.Symbol] / runningHoldings[asset.Symbol]
+					costBasis[asset.Symbol] -= asset.Amount * avgCost
+				}
+				runningHoldings[asset.Symbol] -= asset.Amount
 			}
-			runningHoldings[asset.Symbol] -= asset.Amount
+		case "exchange":
+			ex := event.exchange
+			if runningHoldings[ex.FromSymbol] > 0 {
+				avgCost := costBasis[ex.FromSymbol] / runningHoldings[ex.FromSymbol]
+				transferredCost := ex.FromAmount * avgCost
+				costBasis[ex.FromSymbol] -= transferredCost
+				costBasis[ex.ToSymbol] += transferredCost
+			}
+			runningHoldings[ex.FromSymbol] -= ex.FromAmount
+			runningHoldings[ex.ToSymbol] += ex.ToAmount
 		}
 	}
 
 	return costBasis
+}
+
+func (h *PortfolioHandler) getPriceAtTime(symbol string, timestamp time.Time) float64 {
+	priceRecord, err := h.repo.GetPriceAtTime(symbol, "USD", timestamp)
+	if err == nil && priceRecord != nil {
+		return priceRecord.Price
+	}
+	price, _ := h.priceCache.Get(symbol)
+	return price
+}
+
+func (h *PortfolioHandler) calculateHoldingsAtDate(targetDate time.Time) map[string]float64 {
+	holdings := make(map[string]float64)
+
+	assets, _ := h.repo.GetAllAssets()
+	for _, asset := range assets {
+		if asset.Timestamp.After(targetDate) {
+			continue
+		}
+		switch asset.TransactionType {
+		case "deposit":
+			holdings[asset.Symbol] += asset.Amount
+		case "withdraw":
+			holdings[asset.Symbol] -= asset.Amount
+		}
+	}
+
+	exchanges, _ := h.repo.GetAllExchanges()
+	for _, ex := range exchanges {
+		if ex.Timestamp.After(targetDate) {
+			continue
+		}
+		holdings[ex.FromSymbol] -= ex.FromAmount
+		holdings[ex.ToSymbol] += ex.ToAmount
+	}
+
+	return holdings
 }
 
 func formatPercentNoSign(value float64) string {

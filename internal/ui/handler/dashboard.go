@@ -119,7 +119,6 @@ func (h *DashboardHandler) Chart(c *gin.Context) {
 	days := parseDays(rangeParam)
 
 	symbols, _ := h.repo.GetUniqueSymbols()
-	holdings := h.calculateHoldings()
 
 	historicPrices := make(map[string]map[string]float64)
 	for _, symbol := range symbols {
@@ -138,12 +137,14 @@ func (h *DashboardHandler) Chart(c *gin.Context) {
 	var labels []string
 	var values []float64
 	now := time.Now()
-	todayStr := now.Format("2006-01-02")
 
 	for i := days - 1; i >= 0; i-- {
 		date := now.AddDate(0, 0, -i)
 		dateStr := date.Format("2006-01-02")
 		labelStr := date.Format("Jan 2")
+
+		endOfDay := time.Date(date.Year(), date.Month(), date.Day(), 23, 59, 59, 0, date.Location())
+		holdings := h.calculateHoldingsAtDate(endOfDay)
 
 		var dailyValue float64
 		for symbol, amount := range holdings {
@@ -156,7 +157,7 @@ func (h *DashboardHandler) Chart(c *gin.Context) {
 					price = p
 				}
 			}
-			if price == 0 && dateStr == todayStr {
+			if price == 0 {
 				price, _ = h.priceCache.Get(symbol)
 			}
 			dailyValue += amount * price
@@ -315,26 +316,28 @@ type RecentAssetsData struct {
 }
 
 type RecentAssetItem struct {
-	Type      string
-	TypeClass string
-	Symbol    string
-	Amount    string
-	Date      string
+	Type       string
+	TypeClass  string
+	Symbol     string
+	Amount     string
+	Date       string
+	IsExchange bool
+	FromSymbol string
+	FromAmount string
+	ToSymbol   string
+	ToAmount   string
+}
+
+type transactionEntry struct {
+	timestamp time.Time
+	item      RecentAssetItem
 }
 
 func (h *DashboardHandler) Transactions(c *gin.Context) {
+	var entries []transactionEntry
+
 	assets, _ := h.repo.GetAllAssets()
-
-	sort.Slice(assets, func(i, j int) bool {
-		return assets[i].Timestamp.After(assets[j].Timestamp)
-	})
-
-	var items []RecentAssetItem
-	for i, asset := range assets {
-		if i >= 5 {
-			break
-		}
-
+	for _, asset := range assets {
 		typeClass := "neutral"
 		switch asset.TransactionType {
 		case "deposit":
@@ -343,13 +346,45 @@ func (h *DashboardHandler) Transactions(c *gin.Context) {
 			typeClass = "negative"
 		}
 
-		items = append(items, RecentAssetItem{
-			Type:      asset.TransactionType,
-			TypeClass: typeClass,
-			Symbol:    asset.Symbol,
-			Amount:    formatAmount(asset.Amount),
-			Date:      asset.Timestamp.Format("Jan 2, 2006"),
+		entries = append(entries, transactionEntry{
+			timestamp: asset.Timestamp,
+			item: RecentAssetItem{
+				Type:      asset.TransactionType,
+				TypeClass: typeClass,
+				Symbol:    asset.Symbol,
+				Amount:    formatAmount(asset.Amount),
+				Date:      asset.Timestamp.Format("Jan 2, 2006"),
+			},
 		})
+	}
+
+	exchanges, _ := h.repo.GetAllExchanges()
+	for _, ex := range exchanges {
+		entries = append(entries, transactionEntry{
+			timestamp: ex.Timestamp,
+			item: RecentAssetItem{
+				Type:       "exchange",
+				TypeClass:  "neutral",
+				IsExchange: true,
+				FromSymbol: ex.FromSymbol,
+				FromAmount: formatAmount(ex.FromAmount),
+				ToSymbol:   ex.ToSymbol,
+				ToAmount:   formatAmount(ex.ToAmount),
+				Date:       ex.Timestamp.Format("Jan 2, 2006"),
+			},
+		})
+	}
+
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].timestamp.After(entries[j].timestamp)
+	})
+
+	var items []RecentAssetItem
+	for i, entry := range entries {
+		if i >= 5 {
+			break
+		}
+		items = append(items, entry.item)
 	}
 
 	data := RecentAssetsData{
@@ -375,6 +410,12 @@ func (h *DashboardHandler) calculateHoldings() map[string]float64 {
 		}
 	}
 
+	exchanges, _ := h.repo.GetAllExchanges()
+	for _, ex := range exchanges {
+		holdings[ex.FromSymbol] -= ex.FromAmount
+		holdings[ex.ToSymbol] += ex.ToAmount
+	}
+
 	return holdings
 }
 
@@ -392,30 +433,106 @@ func (h *DashboardHandler) calculatePortfolio() (holdings map[string]float64, to
 	return
 }
 
+type dashboardCostBasisEvent struct {
+	timestamp time.Time
+	eventType string
+	asset     *models.Asset
+	exchange  *models.Exchange
+}
+
 func (h *DashboardHandler) calculateCostBasis(assets []models.Asset) map[string]float64 {
 	costBasis := make(map[string]float64)
 	runningHoldings := make(map[string]float64)
 
-	sort.Slice(assets, func(i, j int) bool {
-		return assets[i].Timestamp.Before(assets[j].Timestamp)
+	var events []dashboardCostBasisEvent
+	for i := range assets {
+		events = append(events, dashboardCostBasisEvent{
+			timestamp: assets[i].Timestamp,
+			eventType: "asset",
+			asset:     &assets[i],
+		})
+	}
+
+	exchanges, _ := h.repo.GetAllExchanges()
+	for i := range exchanges {
+		events = append(events, dashboardCostBasisEvent{
+			timestamp: exchanges[i].Timestamp,
+			eventType: "exchange",
+			exchange:  &exchanges[i],
+		})
+	}
+
+	sort.Slice(events, func(i, j int) bool {
+		return events[i].timestamp.Before(events[j].timestamp)
 	})
 
-	for _, asset := range assets {
-		switch asset.TransactionType {
-		case "deposit":
-			price, _ := h.priceCache.Get(asset.Symbol)
-			costBasis[asset.Symbol] += asset.Amount * price
-			runningHoldings[asset.Symbol] += asset.Amount
-		case "withdraw":
-			if runningHoldings[asset.Symbol] > 0 {
-				avgCost := costBasis[asset.Symbol] / runningHoldings[asset.Symbol]
-				costBasis[asset.Symbol] -= asset.Amount * avgCost
+	for _, event := range events {
+		switch event.eventType {
+		case "asset":
+			asset := event.asset
+			switch asset.TransactionType {
+			case "deposit":
+				price := h.getPriceAtTime(asset.Symbol, asset.Timestamp)
+				costBasis[asset.Symbol] += asset.Amount * price
+				runningHoldings[asset.Symbol] += asset.Amount
+			case "withdraw":
+				if runningHoldings[asset.Symbol] > 0 {
+					avgCost := costBasis[asset.Symbol] / runningHoldings[asset.Symbol]
+					costBasis[asset.Symbol] -= asset.Amount * avgCost
+				}
+				runningHoldings[asset.Symbol] -= asset.Amount
 			}
-			runningHoldings[asset.Symbol] -= asset.Amount
+		case "exchange":
+			ex := event.exchange
+			if runningHoldings[ex.FromSymbol] > 0 {
+				avgCost := costBasis[ex.FromSymbol] / runningHoldings[ex.FromSymbol]
+				transferredCost := ex.FromAmount * avgCost
+				costBasis[ex.FromSymbol] -= transferredCost
+				costBasis[ex.ToSymbol] += transferredCost
+			}
+			runningHoldings[ex.FromSymbol] -= ex.FromAmount
+			runningHoldings[ex.ToSymbol] += ex.ToAmount
 		}
 	}
 
 	return costBasis
+}
+
+func (h *DashboardHandler) getPriceAtTime(symbol string, timestamp time.Time) float64 {
+	priceRecord, err := h.repo.GetPriceAtTime(symbol, "USD", timestamp)
+	if err == nil && priceRecord != nil {
+		return priceRecord.Price
+	}
+	price, _ := h.priceCache.Get(symbol)
+	return price
+}
+
+func (h *DashboardHandler) calculateHoldingsAtDate(targetDate time.Time) map[string]float64 {
+	holdings := make(map[string]float64)
+
+	assets, _ := h.repo.GetAllAssets()
+	for _, asset := range assets {
+		if asset.Timestamp.After(targetDate) {
+			continue
+		}
+		switch asset.TransactionType {
+		case "deposit":
+			holdings[asset.Symbol] += asset.Amount
+		case "withdraw":
+			holdings[asset.Symbol] -= asset.Amount
+		}
+	}
+
+	exchanges, _ := h.repo.GetAllExchanges()
+	for _, ex := range exchanges {
+		if ex.Timestamp.After(targetDate) {
+			continue
+		}
+		holdings[ex.FromSymbol] -= ex.FromAmount
+		holdings[ex.ToSymbol] += ex.ToAmount
+	}
+
+	return holdings
 }
 
 func parseDays(rangeStr string) int {

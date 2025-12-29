@@ -66,3 +66,17 @@ func (r *Repository) DeletePrice(id int64) error {
 func (r *Repository) DeletePricesOlderThan(date time.Time) error {
 	return r.db.Where("timestamp < ?", date).Delete(&models.Price{}).Error
 }
+
+func (r *Repository) GetPriceAtTime(symbol, currency string, timestamp time.Time) (*models.Price, error) {
+	var prices []models.Price
+	if err := r.db.Where("symbol = ? AND currency = ? AND timestamp <= ?", symbol, currency, timestamp).
+		Order("timestamp DESC").
+		Limit(1).
+		Find(&prices).Error; err != nil {
+		return nil, err
+	}
+	if len(prices) == 0 {
+		return nil, nil
+	}
+	return &prices[0], nil
+}
