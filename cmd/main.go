@@ -28,7 +28,7 @@ import (
 // @version 1.0
 // @description Cryptocurrency portfolio tracking API
 
-// @host localhost:8080
+// @host localhost:2008
 // @BasePath /
 
 func main() {
@@ -156,7 +156,7 @@ func main() {
 
 	port := os.Getenv("APP_PORT")
 	if port == "" {
-		port = "8080"
+		port = "2008"
 	}
 
 	sigCh := make(chan os.Signal, 1)

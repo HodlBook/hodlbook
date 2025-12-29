@@ -48,6 +48,9 @@ Thumbs.db
 *.log
 logs/
 
+# Build artifacts
+.docker-digest
+
 
 
 

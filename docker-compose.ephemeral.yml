@@ -11,9 +11,4 @@ services:
       - DB_TYPE=sqlite
       - DB_PATH=/app/data/hodlbook.db
       - DEFAULT_CURRENCY=USD
-    volumes:
-      - hodlbook_data:/app/data
     restart: unless-stopped
-
-volumes:
-  hodlbook_data:

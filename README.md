@@ -59,28 +59,28 @@ hodlbook/
 
 ### Core Views
 
-| View | Status | Description |
-|------|--------|-------------|
-| Dashboard | Done | Portfolio summary, allocation chart, holdings, recent transactions |
-| Portfolio | Pending | Holdings table, performance metrics, historical chart |
-| Assets | Pending | Asset management, add/delete assets |
-| Transactions | Pending | Transaction list with filters, CRUD operations |
-| Exchanges | Pending | Exchange list with filters, CRUD operations |
-| Prices | Pending | Live price ticker with SSE updates |
+| View         | Status  | Description                                                                          |
+|--------------|---------|--------------------------------------------------------------------------------------|
+| Dashboard    | Done    | Portfolio summary, allocation chart, holdings, recent transactions                   |
+| Portfolio    | Done    | Full holdings table, performance metrics, historical chart, filters                  |
+| Assets       | Done    | Asset list with prices/holdings/value, add modal, delete modal                       |
+| Transactions | Done    | Transaction table, filters (asset, type, date), pagination, add/edit/delete modals   |
+| Exchanges    | Done    | Exchange table, filters (from/to asset, date), pagination, add/edit/delete modals    |
+| Prices       | Done    | Live price cards with SSE updates, holdings/value display, connection status         |
 
 ### UI Components
 
-| Component | Status | Purpose |
-|-----------|--------|---------|
-| Sidebar | Done | Navigation between views |
-| Summary Card | Done | Display key metrics |
-| Data Table | Done | Sortable, filterable tables with pagination |
-| Modal/Dialog | Done | Forms for CRUD operations |
-| Charts | Done | Pie (allocation), Line (history) |
-| Form Inputs | Done | Dropdowns, date pickers, number inputs |
-| Toast/Alerts | Done | Success/error feedback |
-| Loading States | Done | Skeletons, spinners |
-| Empty States | Done | When no data exists |
+| Component      | Status | Purpose                                      |
+|----------------|--------|----------------------------------------------|
+| Sidebar        | Done   | Navigation between views                     |
+| Summary Card   | Done   | Display key metrics                          |
+| Data Table     | Done   | Sortable, filterable tables with pagination  |
+| Modal/Dialog   | Done   | Forms for CRUD operations                    |
+| Charts         | Done   | Pie (allocation), Line (history)             |
+| Form Inputs    | Done   | Dropdowns, date pickers, number inputs       |
+| Toast/Alerts   | Done   | Success/error feedback                       |
+| Loading States | Done   | Skeletons, spinners                          |
+| Empty States   | Done   | When no data exists                          |
 
 ### View Details
 
@@ -118,54 +118,47 @@ hodlbook/
 - Price table with live updates
 - Sparkline charts (24h movement)
 
-## API Endpoints
+## Running the Application
 
-### Assets
-- `GET /api/assets` - List all assets
-- `POST /api/assets` - Create asset
-- `GET /api/assets/:id` - Get asset
-- `DELETE /api/assets/:id` - Delete asset
+### Without Docker
 
-### Transactions
-- `GET /api/transactions` - List transactions (filterable)
-- `POST /api/transactions` - Create transaction
-- `GET /api/transactions/:id` - Get transaction
-- `PUT /api/transactions/:id` - Update transaction
-- `DELETE /api/transactions/:id` - Delete transaction
+1. Install Go 1.24 and SQLite development libraries.
+2. Clone the repository:
+   ```bash
+   git clone https://github.com/HodlBook/hodlbook.git
+   cd hodlbook
+   ```
+3. Run the application:
+   ```bash
+   make run
+   ```
+4. Access the application at:
+   - Web UI: `http://localhost:2008`
+   - Swagger API Docs: `http://localhost:2008/swagger/index.html`
 
-### Exchanges
-- `GET /api/exchanges` - List exchanges (filterable)
-- `POST /api/exchanges` - Create exchange
-- `GET /api/exchanges/:id` - Get exchange
-- `PUT /api/exchanges/:id` - Update exchange
-- `DELETE /api/exchanges/:id` - Delete exchange
+### With Docker
 
-### Portfolio
-- `GET /api/portfolio/summary` - Portfolio summary
-- `GET /api/portfolio/allocation` - Asset allocation
-- `GET /api/portfolio/performance` - P/L per asset
-- `GET /api/portfolio/history` - Historical values
+1. Ensure Docker and Docker Compose are installed.
+2. Clone the repository:
+   ```bash
+   git clone https://github.com/HodlBook/hodlbook.git
+   cd hodlbook
+   ```
+3. Build and run the Docker container:
+   ```bash
+   make run-docker
+   ```
+4. Access the application at:
+   - Web UI: `http://localhost:2008`
+   - Swagger API Docs: `http://localhost:2008/swagger`
 
-### Prices
-- `GET /api/prices` - Current prices
-- `GET /api/prices/:symbol` - Price for symbol
-- `GET /api/prices/history/:id` - Price history
-- `GET /api/prices/stream` - SSE live prices
+Data is persisted automatically using a Docker named volume (`hodlbook_data`).
 
-## Running
+### With Docker (Ephemeral)
 
+For testing or development without data persistence:
 ```bash
-# Development
-go run cmd/main.go
-
-# Access
-http://localhost:8080        # Web UI
-http://localhost:8080/swagger # API docs
+make run-docker-ephemeral
 ```
 
-## Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| APP_PORT | 8080 | Server port |
-| DB_PATH | ./data/hodlbook.db | SQLite database path |
+Data will be lost when the container is removed.

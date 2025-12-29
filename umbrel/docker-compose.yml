@@ -1,0 +1,20 @@
+version: "3.7"
+
+services:
+  app_proxy:
+    environment:
+      APP_HOST: hodlbook_web_1
+      APP_PORT: 2008
+
+  web:
+    image: ghcr.io/hodlbook/hodlbook:v0.1.1
+    restart: on-failure
+    stop_grace_period: 1m
+    volumes:
+      - ${APP_DATA_DIR}/data:/data
+    environment:
+      - APP_ENV=production
+      - APP_PORT=2008
+      - DB_TYPE=sqlite
+      - DB_PATH=/data/hodlbook.db
+      - DEFAULT_CURRENCY=USD

@@ -1,0 +1,30 @@
+manifestVersion: 1
+id: hodlbook
+category: finance
+name: HodlBook
+version: "0.1.1"
+tagline: Self-hosted cryptocurrency portfolio tracker
+description: >-
+  HodlBook is a privacy-focused, self-hosted cryptocurrency portfolio tracker.
+  Track your crypto holdings, register deposits, withdrawals, and exchanges
+  between assets. View your portfolio allocation, current values, and
+  profit/loss metrics - all without sharing your data with third parties.
+
+
+  Features include live price updates via Binance/CoinGecko APIs, portfolio
+  allocation charts, transaction history, and a clean dark-themed interface.
+developer: HodlBook
+website: https://github.com/HodlBook/hodlbook
+repo: https://github.com/HodlBook/hodlbook
+support: https://github.com/HodlBook/hodlbook/issues
+port: 2008
+releaseNotes: ""
+gallery:
+  - 0.png
+  - 1.png
+  - 2.png
+  - 3.png
+  - 4.png
+path: ""
+submitter: HodlBook
+submission: ""
