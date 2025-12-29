@@ -2,7 +2,7 @@ manifestVersion: 1
 id: hodlbook
 category: finance
 name: HodlBook
-version: "0.1.2"
+version: "0.1.3"
 tagline: Self-hosted cryptocurrency portfolio tracker
 description: >-
   HodlBook is a privacy-focused, self-hosted cryptocurrency portfolio tracker.
