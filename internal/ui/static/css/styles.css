@@ -423,6 +423,12 @@ body {
     flex: 1;
     display: flex;
     flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+}
+
+.dashboard-allocation .card-body {
+    padding: 8px 20px;
 }
 
 .dashboard-grid:last-of-type {
@@ -561,6 +567,7 @@ body {
     gap: 20px;
     flex: 1;
     align-items: center;
+    min-height: 0;
 }
 
 .allocation-chart {
@@ -588,6 +595,23 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
+    max-height: var(--allocation-size);
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-color) transparent;
+}
+
+.allocation-legend::-webkit-scrollbar {
+    width: 6px;
+}
+
+.allocation-legend::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.allocation-legend::-webkit-scrollbar-thumb {
+    background-color: var(--border-color);
+    border-radius: 3px;
 }
 
 .legend-item {

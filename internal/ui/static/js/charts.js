@@ -90,6 +90,7 @@ function createLineChart(ctx, labels, values, maxTicksLimit) {
                 y: {
                     grid: { color: 'rgba(255,255,255,0.05)' },
                     ticks: {
+                        maxTicksLimit: 5,
                         color: '#8892a0',
                         callback: function(v) {
                             if (v >= 1000000) return '$' + Math.round(v/1000) + 'K';
