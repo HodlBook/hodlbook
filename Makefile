@@ -57,29 +57,23 @@ bump-version:
 	git push origin $$BRANCH_NAME; \
 	echo ""; \
 	echo "Release branch $$BRANCH_NAME pushed."; \
-	echo "Run: make release VERSION=$$NEW_VERSION"
+	echo "Run: make release"
 
 release:
-	@if [ -z "$(VERSION)" ]; then \
-		echo "Error: VERSION argument is required."; \
-		echo "Usage: make release VERSION=v0.1.2"; \
+	@VERSION=$$(grep -oP 'const Version = "\K[^"]+' version/version.go); \
+	if [ -z "$$VERSION" ]; then \
+		echo "Error: Could not read version from version/version.go."; \
 		exit 1; \
-	fi
-	@BRANCH_NAME="release/$(VERSION)"; \
-	echo "Creating release for $(VERSION) from $$BRANCH_NAME..."; \
+	fi; \
+	BRANCH_NAME="release/$$VERSION"; \
+	echo "Creating release for $$VERSION from $$BRANCH_NAME..."; \
 	git fetch origin $$BRANCH_NAME; \
 	git checkout $$BRANCH_NAME; \
 	git pull origin $$BRANCH_NAME; \
-	echo "Creating tag $(VERSION)..."; \
-	git tag $(VERSION); \
+	echo "Creating tag $$VERSION..."; \
+	git tag $$VERSION; \
 	echo "Pushing tag to trigger GitHub Actions..."; \
-	git push origin $(VERSION); \
-	echo ""; \
-	echo "Tag pushed! GitHub Actions triggered:"; \
-	echo "  - release.yml (GitHub Release)"; \
-	echo "  - docker-build.yml (Docker image to GHCR)"; \
-	echo ""; \
-	echo "Monitor progress at: https://github.com/HodlBook/hodlbook/actions"
+	git push origin $$VERSION
 
 test:
 	@echo "Running tests..."
