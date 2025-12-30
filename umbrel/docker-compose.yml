@@ -8,7 +8,6 @@ services:
 
   server:
     image: ghcr.io/hodlbook/hodlbook:v0.1.11
-    user: "1000:1000"
     restart: on-failure
     stop_grace_period: 1m
     volumes:

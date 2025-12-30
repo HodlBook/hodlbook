@@ -33,15 +33,12 @@ jobs:
     - name: Download dependencies
       run: go mod download
 
-    - name: Install build deps (sqlite3)
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential pkg-config libsqlite3-dev
-
     - name: Run Tests
+      env:
+        CGO_ENABLED: 0
       run: go test ./...
 
     - name: Build
       env:
-        CGO_ENABLED: 1
-      run: go build -o hodlbook cmd/main.go
+        CGO_ENABLED: 0
+      run: go build -ldflags="-s -w" -o hodlbook cmd/main.go
