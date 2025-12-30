@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-const baseURL = "http://localhost:8080/api"
+const baseURL = "http://localhost:2008/api"
 
 type Asset struct {
 	ID     int64  `json:"id"`

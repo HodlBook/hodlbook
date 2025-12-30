@@ -2,22 +2,30 @@ basePath: /
 definitions:
   models.Asset:
     properties:
+      amount:
+        type: number
       created_at:
         type: string
       id:
         type: integer
       name:
         type: string
+      notes:
+        type: string
       symbol:
+        type: string
+      timestamp:
+        type: string
+      transaction_type:
         type: string
       updated_at:
         type: string
     type: object
   models.AssetHistoricValue:
     properties:
-      asset_id:
-        type: integer
       created_at:
+        type: string
+      symbol:
         type: string
       timestamp:
         type: string
@@ -34,8 +42,8 @@ definitions:
         type: string
       from_amount:
         type: number
-      from_asset_id:
-        type: integer
+      from_symbol:
+        type: string
       id:
         type: integer
       notes:
@@ -44,29 +52,23 @@ definitions:
         type: string
       to_amount:
         type: number
-      to_asset_id:
-        type: integer
+      to_symbol:
+        type: string
       updated_at:
         type: string
     type: object
-  models.Transaction:
+  repo.AssetListResult:
     properties:
-      amount:
-        type: number
-      asset_id:
+      assets:
+        items:
+          $ref: '#/definitions/models.Asset'
+        type: array
+      limit:
         type: integer
-      created_at:
-        type: string
-      id:
+      offset:
         type: integer
-      notes:
-        type: string
-      timestamp:
-        type: string
-      type:
-        type: string
-      updated_at:
-        type: string
+      total:
+        type: integer
     type: object
   repo.ExchangeListResult:
     properties:
@@ -81,20 +83,7 @@ definitions:
       total:
         type: integer
     type: object
-  repo.TransactionListResult:
-    properties:
-      limit:
-        type: integer
-      offset:
-        type: integer
-      total:
-        type: integer
-      transactions:
-        items:
-          $ref: '#/definitions/models.Transaction'
-        type: array
-    type: object
-host: localhost:8080
+host: localhost:2008
 info:
   contact: {}
   description: Cryptocurrency portfolio tracking API
@@ -103,29 +92,52 @@ info:
 paths:
   /api/assets:
     get:
-      description: Get a list of all assets
+      description: Get a list of assets with optional filters
+      parameters:
+      - description: Limit
+        in: query
+        name: limit
+        type: integer
+      - description: Offset
+        in: query
+        name: offset
+        type: integer
+      - description: Symbol
+        in: query
+        name: symbol
+        type: string
+      - description: Transaction type (deposit, withdraw)
+        in: query
+        name: transaction_type
+        type: string
+      - description: Start date (YYYY-MM-DD)
+        in: query
+        name: start_date
+        type: string
+      - description: End date (YYYY-MM-DD)
+        in: query
+        name: end_date
+        type: string
       produces:
       - application/json
       responses:
         "200":
           description: OK
           schema:
-            items:
-              $ref: '#/definitions/models.Asset'
-            type: array
+            $ref: '#/definitions/repo.AssetListResult'
         "500":
           description: Internal Server Error
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: List all assets
+      summary: List assets
       tags:
       - assets
     post:
       consumes:
       - application/json
-      description: Create a new asset with the provided data
+      description: Create a new asset entry with the provided data
       parameters:
       - description: Asset data
         in: body
@@ -152,12 +164,12 @@ paths:
             additionalProperties:
               type: string
             type: object
-      summary: Create a new asset
+      summary: Create a new asset entry
       tags:
       - assets
   /api/assets/{id}:
     delete:
-      description: Delete an asset by its ID
+      description: Delete an asset entry by its ID
       parameters:
       - description: Asset ID
         in: path
@@ -173,23 +185,17 @@ paths:
             additionalProperties:
               type: string
             type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
         "500":
           description: Internal Server Error
           schema:
             additionalProperties:
               type: string
             type: object
-      summary: Delete an asset
+      summary: Delete an asset entry
       tags:
       - assets
     get:
-      description: Get a single asset by its ID
+      description: Get a single asset entry by its ID
       parameters:
       - description: Asset ID
         in: path
@@ -218,6 +224,71 @@ paths:
       summary: Get an asset by ID
       tags:
       - assets
+    put:
+      consumes:
+      - application/json
+      description: Update an existing asset entry by its ID
+      parameters:
+      - description: Asset ID
+        in: path
+        name: id
+        required: true
+        type: integer
+      - description: Asset data
+        in: body
+        name: asset
+        required: true
+        schema:
+          $ref: '#/definitions/models.Asset'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Asset'
+        "400":
+          description: Bad Request
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Update an asset entry
+      tags:
+      - assets
+  /api/assets/symbols:
+    get:
+      description: Get a list of unique asset symbols
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: string
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Get unique symbols
+      tags:
+      - assets
   /api/exchanges:
     get:
       description: Get a list of exchanges with optional filters
@@ -230,18 +301,18 @@ paths:
         in: query
         name: offset
         type: integer
-      - description: Asset ID (matches from or to)
+      - description: Symbol (matches from or to)
         in: query
-        name: asset_id
-        type: integer
-      - description: From Asset ID
+        name: symbol
+        type: string
+      - description: From Symbol
         in: query
-        name: from_asset_id
-        type: integer
-      - description: To Asset ID
+        name: from_symbol
+        type: string
+      - description: To Symbol
         in: query
-        name: to_asset_id
-        type: integer
+        name: to_symbol
+        type: string
       - description: Start date (YYYY-MM-DD)
         in: query
         name: start_date
@@ -526,15 +597,42 @@ paths:
       summary: Get price for a specific asset
       tags:
       - prices
-  /api/prices/history/{id}:
+  /api/prices/currencies:
     get:
-      description: Get historical prices for a specific asset by ID
+      description: Get all available currencies from Binance, optionally filtered
+        by search query
       parameters:
-      - description: Asset ID
+      - description: Search query to filter currencies
+        in: query
+        name: q
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              type: object
+            type: array
+        "500":
+          description: Internal Server Error
+          schema:
+            additionalProperties:
+              type: string
+            type: object
+      summary: Search available currencies from providers
+      tags:
+      - prices
+  /api/prices/history/{symbol}:
+    get:
+      description: Get historical prices for a specific asset by symbol
+      parameters:
+      - description: Asset symbol
         in: path
-        name: id
+        name: symbol
         required: true
-        type: integer
+        type: string
       produces:
       - application/json
       responses:
@@ -544,12 +642,6 @@ paths:
             items:
               $ref: '#/definitions/models.AssetHistoricValue'
             type: array
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
         "500":
           description: Internal Server Error
           schema:
@@ -572,182 +664,4 @@ paths:
       summary: Stream live prices
       tags:
       - prices
-  /api/transactions:
-    get:
-      description: Get a list of transactions with optional filters
-      parameters:
-      - description: Limit
-        in: query
-        name: limit
-        type: integer
-      - description: Offset
-        in: query
-        name: offset
-        type: integer
-      - description: Asset ID
-        in: query
-        name: asset_id
-        type: integer
-      - description: Transaction type
-        in: query
-        name: type
-        type: string
-      - description: Start date (YYYY-MM-DD)
-        in: query
-        name: start_date
-        type: string
-      - description: End date (YYYY-MM-DD)
-        in: query
-        name: end_date
-        type: string
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/repo.TransactionListResult'
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: List transactions
-      tags:
-      - transactions
-    post:
-      consumes:
-      - application/json
-      description: Create a new transaction with the provided data
-      parameters:
-      - description: Transaction data
-        in: body
-        name: transaction
-        required: true
-        schema:
-          $ref: '#/definitions/models.Transaction'
-      produces:
-      - application/json
-      responses:
-        "201":
-          description: Created
-          schema:
-            $ref: '#/definitions/models.Transaction'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Create a new transaction
-      tags:
-      - transactions
-  /api/transactions/{id}:
-    delete:
-      description: Delete a transaction by its ID
-      parameters:
-      - description: Transaction ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      responses:
-        "204":
-          description: No Content
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Delete a transaction
-      tags:
-      - transactions
-    get:
-      description: Get a single transaction by its ID
-      parameters:
-      - description: Transaction ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.Transaction'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Get a transaction by ID
-      tags:
-      - transactions
-    put:
-      consumes:
-      - application/json
-      description: Update an existing transaction by its ID
-      parameters:
-      - description: Transaction ID
-        in: path
-        name: id
-        required: true
-        type: integer
-      - description: Transaction data
-        in: body
-        name: transaction
-        required: true
-        schema:
-          $ref: '#/definitions/models.Transaction'
-      produces:
-      - application/json
-      responses:
-        "200":
-          description: OK
-          schema:
-            $ref: '#/definitions/models.Transaction'
-        "400":
-          description: Bad Request
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "404":
-          description: Not Found
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-        "500":
-          description: Internal Server Error
-          schema:
-            additionalProperties:
-              type: string
-            type: object
-      summary: Update a transaction
-      tags:
-      - transactions
 swagger: "2.0"

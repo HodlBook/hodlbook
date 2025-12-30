@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   release:
-    name: Create Release
+    name: Create GitHub Release
     runs-on: ubuntu-latest
 
     steps:
@@ -33,7 +33,7 @@ jobs:
       run: go build -o hodlbook cmd/main.go
 
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: hodlbook
         generate_release_notes: true

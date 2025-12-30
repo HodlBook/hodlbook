@@ -18,13 +18,13 @@ WORKDIR /app
 RUN apk add --no-cache ca-certificates sqlite
 
 COPY --from=builder /app/hodlbook .
-COPY --from=builder /app/static ./static
+COPY --from=builder /app/internal/ui/static ./internal/ui/static
 COPY --from=builder /app/docs ./docs
 
-ENV APP_PORT=8080
+ENV APP_PORT=2008
 ENV DB_PATH=/data/hodlbook.db
 
-EXPOSE 8080
+EXPOSE 2008
 
 VOLUME ["/data"]
 
