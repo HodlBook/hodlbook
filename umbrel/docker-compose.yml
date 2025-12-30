@@ -3,11 +3,12 @@ version: "3.7"
 services:
   app_proxy:
     environment:
-      APP_HOST: hodlbook_web_1
+      APP_HOST: hodlbook_server_1
       APP_PORT: 2008
 
-  web:
+  server:
     image: ghcr.io/hodlbook/hodlbook:v0.1.4
+    user: "1000:1000"
     restart: on-failure
     stop_grace_period: 1m
     volumes:

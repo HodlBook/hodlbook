@@ -22,19 +22,15 @@ Self-hosted crypto portfolio management application.
 
 - **Infrastructure**:
   - Docker and Docker Compose setup.
-  - GitHub Actions for CI/CD.
+  - GitHub Actions for CI/CD (build, release, docker push to GHCR).
   - Swagger documentation for API.
   - Local setup instructions completed.
+  - Umbrel app store files prepared (see below).
 
 ### Pending
 - **Development**:
   - Hot-reload for development (e.g., Air).
   - Additional input validation and error handling.
-
-### Out of Scope
-- Automatic centralized exchange API integrations.
-- Tax reporting or compliance features.
-- Hosted service / SaaS.
 
 ### Desirable Future Enhancements
 - Add deposit/exchange tags/wallet names for better organization
@@ -48,6 +44,8 @@ Self-hosted crypto portfolio management application.
 - Additional price data sources.
 - Mobile-friendly UI improvements.
 
----
+### Out of Scope
+- Automatic centralized exchange API integrations.
+- Tax reporting or compliance features.
+- Hosted service / SaaS.
 
-HodlBook is feature-complete for its core functionality and ready for self-hosted deployment. Remaining tasks focus on improving developer experience and documentation.
