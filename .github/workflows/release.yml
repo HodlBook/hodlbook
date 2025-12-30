@@ -1,9 +1,9 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  workflow_run:
+    workflows: ["Docker Build"]
+    types: [completed]
 
 permissions:
   contents: write
@@ -12,10 +12,13 @@ jobs:
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
 
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.workflow_run.head_branch }}
 
     - name: Set up Go
       uses: actions/setup-go@v5
@@ -35,9 +38,17 @@ jobs:
     - name: Create Release
       uses: softprops/action-gh-release@v2
       with:
+        tag_name: ${{ github.event.workflow_run.head_branch }}
         files: hodlbook
         generate_release_notes: true
         draft: false
         prerelease: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Trigger app-store sync
+      uses: peter-evans/repository-dispatch@v3
+      with:
+        token: ${{ secrets.HODLBOOK_APP_STORE_PAT }}
+        repository: HodlBook/hodlbook-app-store
+        event-type: hodlbook-release
