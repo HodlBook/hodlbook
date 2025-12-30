@@ -1,7 +1,17 @@
 #!/bin/bash
-set -euo pipefail
 
 # Create data directory with proper ownership before container starts
 # This prevents Docker from creating it as root when mounting volumes
-mkdir -p "${APP_DATA_DIR}/data"
-chown 1000:1000 "${APP_DATA_DIR}/data"
+DATA_DIR="${APP_DATA_DIR}/data"
+
+echo "HodlBook pre-start: Creating data directory at ${DATA_DIR}"
+
+mkdir -p "${DATA_DIR}" || {
+    echo "HodlBook pre-start: Failed to create directory ${DATA_DIR}"
+    exit 1
+}
+
+# Try to set ownership, but don't fail if we can't (may not have permissions)
+chown 1000:1000 "${DATA_DIR}" 2>/dev/null || echo "HodlBook pre-start: Could not chown ${DATA_DIR} (may already have correct permissions)"
+
+echo "HodlBook pre-start: Data directory ready"

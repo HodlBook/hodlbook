@@ -44,13 +44,29 @@ func WithPath(path string) Option {
 		// Ensure data directory exists
 		dir := filepath.Dir(path)
 		if err := os.MkdirAll(dir, 0755); err != nil {
-			return fmt.Errorf("failed to create data directory: %w", err)
+			return fmt.Errorf("failed to create data directory %s: %w", dir, err)
 		}
+
+		// Verify directory is accessible and writable
+		info, err := os.Stat(dir)
+		if err != nil {
+			return fmt.Errorf("failed to stat data directory %s: %w", dir, err)
+		}
+		if !info.IsDir() {
+			return fmt.Errorf("data path %s is not a directory", dir)
+		}
+
+		// Test write permissions by creating a temp file
+		testFile := filepath.Join(dir, ".write_test")
+		if err := os.WriteFile(testFile, []byte("test"), 0644); err != nil {
+			return fmt.Errorf("data directory %s is not writable: %w", dir, err)
+		}
+		os.Remove(testFile)
 
 		// Open database
 		conn, err := gorm.Open(sqlite.Open(path), &gorm.Config{})
 		if err != nil {
-			return fmt.Errorf("failed to connect to database: %w", err)
+			return fmt.Errorf("failed to connect to database: %w (path: %s, dir exists: true)", err, path)
 		}
 
 		db.conn = conn
