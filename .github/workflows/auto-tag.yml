@@ -17,6 +17,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.HODLBOOK_APP_STORE_PAT }}
 
     - name: Extract version and create tag
       run: |
