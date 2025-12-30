@@ -1,0 +1,26 @@
+name: Auto Tag on Release Branch Merge
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  create-tag:
+    name: Create version tag
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true && startsWith(github.event.pull_request.head.ref, 'release/')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Extract version and create tag
+      run: |
+        VERSION=$(grep -oP 'const Version = "\K[^"]+' version/version.go)
+        echo "Creating tag $VERSION..."
+        git tag $VERSION
+        git push origin $VERSION
