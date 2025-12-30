@@ -4,7 +4,7 @@ name: HodlBook
 tagline: Self-hosted cryptocurrency portfolio tracker
 icon: https://raw.githubusercontent.com/HodlBook/hodlbook/master/internal/ui/static/favicon.png
 category: finance
-version: "0.1.10"
+version: "0.1.11"
 port: 2008
 description: >-
   HodlBook is a privacy-focused, self-hosted cryptocurrency portfolio tracker.
