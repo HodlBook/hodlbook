@@ -7,7 +7,7 @@ services:
       APP_PORT: 2008
 
   server:
-    image: ghcr.io/hodlbook/hodlbook:v0.1.13
+    image: ghcr.io/hodlbook/hodlbook:v0.1.14
     restart: on-failure
     stop_grace_period: 1m
     volumes:

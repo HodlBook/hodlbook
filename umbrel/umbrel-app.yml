@@ -1,10 +1,10 @@
-manifestVersion: 1.1
+manifestVersion: 1
 id: hodlbook
 name: HodlBook
 tagline: Self-hosted cryptocurrency portfolio tracker
 icon: https://raw.githubusercontent.com/HodlBook/hodlbook/master/internal/ui/static/favicon.png
 category: finance
-version: "0.1.13"
+version: "0.1.14"
 port: 2008
 description: >-
   HodlBook is a privacy-focused, self-hosted cryptocurrency portfolio tracker.
@@ -26,5 +26,5 @@ gallery:
   - https://raw.githubusercontent.com/HodlBook/hodlbook/master/screenshot-2.png
   - https://raw.githubusercontent.com/HodlBook/hodlbook/master/screenshot-3.png
   - https://raw.githubusercontent.com/HodlBook/hodlbook/master/screenshot-4.png
-releaseNotes: Initial release with portfolio tracking, price updates, and transaction management.
+releaseNotes: Fix data directory permissions for UmbrelOS compatibility.
 path: ""

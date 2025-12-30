@@ -13,7 +13,7 @@ FROM alpine:3.21
 
 WORKDIR /app
 
-RUN apk add --no-cache ca-certificates && \
+RUN apk add --no-cache ca-certificates su-exec && \
     adduser -D -u 1000 hodlbook && \
     mkdir -p /data && \
     chown hodlbook:hodlbook /data
@@ -23,6 +23,16 @@ COPY --from=builder /app/internal/ui/static ./internal/ui/static
 COPY --from=builder /app/internal/ui/templates ./internal/ui/templates
 COPY --from=builder /app/docs ./docs
 
+COPY <<'EOF' /entrypoint.sh
+#!/bin/sh
+# Fix /data permissions if mounted as root
+if [ -d /data ]; then
+    chown -R hodlbook:hodlbook /data 2>/dev/null || true
+fi
+exec su-exec hodlbook "$@"
+EOF
+RUN chmod +x /entrypoint.sh
+
 ENV APP_PORT=2008
 ENV DB_PATH=/data/hodlbook.db
 
@@ -30,6 +40,5 @@ EXPOSE 2008
 
 VOLUME ["/data"]
 
-USER hodlbook
-
+ENTRYPOINT ["/entrypoint.sh"]
 CMD ["./hodlbook"]
