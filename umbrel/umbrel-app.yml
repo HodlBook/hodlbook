@@ -26,5 +26,5 @@ gallery:
   - https://raw.githubusercontent.com/HodlBook/hodlbook/master/screenshot-2.png
   - https://raw.githubusercontent.com/HodlBook/hodlbook/master/screenshot-3.png
   - https://raw.githubusercontent.com/HodlBook/hodlbook/master/screenshot-4.png
-releaseNotes: Initial release with portfolio tracking, price updates, and transaction management.
+releaseNotes: Fix data directory permissions for UmbrelOS compatibility.
 path: ""
