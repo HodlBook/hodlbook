@@ -10,6 +10,11 @@ bump-version:
 		echo "Usage: make bump-version TYPE=fix"; \
 		exit 1; \
 	fi
+	@if [ -n "$$(git status --porcelain)" ]; then \
+		echo "Error: Uncommitted changes detected. Please commit or stash them first."; \
+		git status --short; \
+		exit 1; \
+	fi
 	@echo "Running tests..."
 	@if ! $(MAKE) test; then \
 		echo "Tests failed. Aborting version bump."; \
