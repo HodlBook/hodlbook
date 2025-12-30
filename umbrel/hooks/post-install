@@ -7,7 +7,7 @@ log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a "${LOG_FILE}"
 }
 
-log "HodlBook pre-start: Starting"
+log "HodlBook post-install: Starting"
 log "APP_DATA_DIR=${APP_DATA_DIR}"
 
 DATA_DIR="${APP_DATA_DIR}/data"
@@ -43,4 +43,4 @@ fi
 
 log "Data directory ready: $(ls -la ${DATA_DIR} 2>&1)"
 log "Parent directory permissions: $(ls -la ${APP_DATA_DIR} 2>&1 | grep data)"
-log "HodlBook pre-start: Complete"
+log "HodlBook post-install: Complete"
