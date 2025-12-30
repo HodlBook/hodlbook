@@ -1,0 +1,7 @@
+#!/bin/bash
+set -euo pipefail
+
+# Create data directory with proper ownership before container starts
+# This prevents Docker from creating it as root when mounting volumes
+mkdir -p "${APP_DATA_DIR}/data"
+chown 1000:1000 "${APP_DATA_DIR}/data"
