@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"testing"
 
 	"hodlbook/pkg/types/prices"
@@ -12,40 +13,52 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestPriceFetcher_Fetch(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := map[string]map[string]float64{
-			"bitcoin": {"usd": 87267.53},
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
-	}))
-	defer server.Close()
+func isIntegration() bool {
+	return os.Getenv("INTEGRATION") == "true"
+}
 
+func TestPriceFetcher_Fetch(t *testing.T) {
 	fetcher := NewPriceFetcher()
-	fetcher.BaseURL = server.URL
+
+	if !isIntegration() {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			resp := map[string]map[string]float64{
+				"bitcoin": {"usd": 87267.53},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+		}))
+		defer server.Close()
+		fetcher.BaseURL = server.URL
+	}
 
 	price := &prices.Price{Asset: prices.Asset{Name: "Bitcoin", Symbol: "BTC"}}
 	err := fetcher.Fetch(price)
 	require.NoError(t, err)
 
-	assert.Equal(t, 87267.53, price.Value)
-	t.Logf("%sUSD: %f", price.Asset.Symbol, price.Value)
+	if isIntegration() {
+		assert.Greater(t, price.Value, 0.0)
+		t.Logf("BTC/USD: %f", price.Value)
+	} else {
+		assert.Equal(t, 87267.53, price.Value)
+	}
 }
 
 func TestPriceFetcher_FetchMany(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := map[string]map[string]float64{
-			"bitcoin":  {"usd": 87222.51},
-			"ethereum": {"usd": 2933.91},
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
-	}))
-	defer server.Close()
-
 	fetcher := NewPriceFetcher()
-	fetcher.BaseURL = server.URL
+
+	if !isIntegration() {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			resp := map[string]map[string]float64{
+				"bitcoin":  {"usd": 87222.51},
+				"ethereum": {"usd": 2933.91},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+		}))
+		defer server.Close()
+		fetcher.BaseURL = server.URL
+	}
 
 	testPrices := []*prices.Price{
 		{Asset: prices.Asset{Name: "Bitcoin", Symbol: "BTC"}},
@@ -55,11 +68,15 @@ func TestPriceFetcher_FetchMany(t *testing.T) {
 	err := fetcher.FetchMany(testPrices...)
 	require.NoError(t, err)
 
-	assert.Equal(t, 87222.51, testPrices[0].Value)
-	assert.Equal(t, 2933.91, testPrices[1].Value)
-
-	for _, pair := range testPrices {
-		t.Logf("%sUSD: %f", pair.Asset.Symbol, pair.Value)
+	if isIntegration() {
+		assert.Greater(t, testPrices[0].Value, 0.0)
+		assert.Greater(t, testPrices[1].Value, 0.0)
+		for _, p := range testPrices {
+			t.Logf("%s/USD: %f", p.Asset.Symbol, p.Value)
+		}
+	} else {
+		assert.Equal(t, 87222.51, testPrices[0].Value)
+		assert.Equal(t, 2933.91, testPrices[1].Value)
 	}
 }
 
@@ -81,6 +98,10 @@ func TestPriceFetcher_FetchMany_StablecoinsReturnOne(t *testing.T) {
 }
 
 func TestPriceFetcher_Fetch_HTTPError(t *testing.T) {
+	if isIntegration() {
+		t.Skip("skipping HTTP error test in integration mode")
+	}
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusTooManyRequests)
 	}))
@@ -97,28 +118,38 @@ func TestPriceFetcher_Fetch_HTTPError(t *testing.T) {
 }
 
 func TestPriceFetcher_FetchAll(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		resp := []struct {
-			ID     string  `json:"id"`
-			Symbol string  `json:"symbol"`
-			Price  float64 `json:"current_price"`
-		}{
-			{ID: "bitcoin", Symbol: "btc", Price: 87000.0},
-			{ID: "ethereum", Symbol: "eth", Price: 2900.0},
-		}
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(resp)
-	}))
-	defer server.Close()
-
 	fetcher := NewPriceFetcher()
-	fetcher.BaseURL = server.URL
+
+	if !isIntegration() {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			resp := []struct {
+				ID     string  `json:"id"`
+				Symbol string  `json:"symbol"`
+				Price  float64 `json:"current_price"`
+			}{
+				{ID: "bitcoin", Symbol: "btc", Price: 87000.0},
+				{ID: "ethereum", Symbol: "eth", Price: 2900.0},
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+		}))
+		defer server.Close()
+		fetcher.BaseURL = server.URL
+	}
 
 	allPrices, err := fetcher.FetchAll()
 	require.NoError(t, err)
 
-	assert.Len(t, allPrices, 2)
-	assert.Equal(t, "bitcoin", allPrices[0].Asset.Name)
-	assert.Equal(t, "BTC", allPrices[0].Asset.Symbol)
-	assert.Equal(t, 87000.0, allPrices[0].Value)
+	if isIntegration() {
+		assert.Greater(t, len(allPrices), 0)
+		t.Logf("fetched %d prices", len(allPrices))
+		for _, p := range allPrices[:min(5, len(allPrices))] {
+			t.Logf("%s (%s): %f", p.Asset.Name, p.Asset.Symbol, p.Value)
+		}
+	} else {
+		assert.Len(t, allPrices, 2)
+		assert.Equal(t, "bitcoin", allPrices[0].Asset.Name)
+		assert.Equal(t, "BTC", allPrices[0].Asset.Symbol)
+		assert.Equal(t, 87000.0, allPrices[0].Value)
+	}
 }

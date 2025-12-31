@@ -80,3 +80,29 @@ func (r *Repository) GetPriceAtTime(symbol, currency string, timestamp time.Time
 	}
 	return &prices[0], nil
 }
+
+type AssetPriceQuery struct {
+	Symbol    string
+	Timestamp time.Time
+}
+
+func (r *Repository) GetPricesAtTimes(queries []AssetPriceQuery, currency string) (map[string]map[int64]float64, error) {
+	result := make(map[string]map[int64]float64)
+
+	for _, q := range queries {
+		price, err := r.GetPriceAtTime(q.Symbol, currency, q.Timestamp)
+		if err != nil {
+			continue
+		}
+		if price == nil {
+			continue
+		}
+
+		if result[q.Symbol] == nil {
+			result[q.Symbol] = make(map[int64]float64)
+		}
+		result[q.Symbol][q.Timestamp.Unix()] = price.Price
+	}
+
+	return result, nil
+}

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"html/template"
 	"io"
 	"path/filepath"
@@ -69,13 +70,19 @@ func formatCurrency(value float64, currency string) string {
 }
 
 func formatPrice(value float64) string {
-	if value >= 1 {
-		return "$" + formatFloat(value)
-	}
 	if value == 0 {
 		return "$0"
 	}
-	return "$" + strconv.FormatFloat(value, 'f', -1, 64)
+	abs := value
+	sign := ""
+	if value < 0 {
+		abs = -value
+		sign = "-"
+	}
+	if abs >= 1 {
+		return sign + "$" + formatFloat(abs)
+	}
+	return sign + "$" + fmt.Sprintf("%.2f", abs)
 }
 
 func formatExchangeRate(value float64) string {

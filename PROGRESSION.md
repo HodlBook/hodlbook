@@ -33,13 +33,14 @@ Self-hosted crypto portfolio management application.
   - Additional input validation and error handling.
 
 ### Desirable Future Enhancements
-- Add deposit/exchange tags/wallet names for better organization
-- Advanced filtering and sorting options in tables.
 - Export/import functionality for data backup.
     - import thru CSV/JSON
-    - import from transaction link for popular blockchains
     - export to CSV/JSON/PDF
-- web-browser wallets integration
+- Add deposit/exchange tags/wallet names for better organization
+- Advanced filtering and sorting options in tables.
+- Export/import functionality.
+    - import from transaction link for popular blockchains
+- browser wallets integration
 - User authentication and multi-user support.
 - Additional price data sources.
 - Mobile-friendly UI improvements.

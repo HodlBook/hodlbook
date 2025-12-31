@@ -1,0 +1,66 @@
+[
+  {
+    "symbol": "BTC",
+    "name": "Bitcoin",
+    "amount": 0.5,
+    "transaction_type": "deposit",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "notes": "Initial purchase from exchange"
+  },
+  {
+    "symbol": "ETH",
+    "name": "Ethereum",
+    "amount": 2.0,
+    "transaction_type": "deposit",
+    "timestamp": "2024-01-16T14:00:00Z",
+    "notes": "Transferred from Coinbase"
+  },
+  {
+    "symbol": "BTC",
+    "name": "Bitcoin",
+    "amount": 0.1,
+    "transaction_type": "withdrawal",
+    "timestamp": "2024-01-20T09:15:00Z",
+    "notes": "Sent to hardware wallet"
+  },
+  {
+    "symbol": "SOL",
+    "name": "Solana",
+    "amount": 50.0,
+    "transaction_type": "deposit",
+    "timestamp": "2024-01-25T11:00:00Z",
+    "notes": "Bought during dip"
+  },
+  {
+    "symbol": "DOGE",
+    "name": "Dogecoin",
+    "amount": 1000,
+    "transaction_type": "deposit",
+    "timestamp": "2024-02-01T16:30:00Z",
+    "notes": "Fun investment"
+  },
+  {
+    "symbol": "ETH",
+    "name": "Ethereum",
+    "amount": 0.5,
+    "transaction_type": "withdrawal",
+    "timestamp": "2024-02-10T08:45:00Z",
+    "notes": "Gas fees payment"
+  },
+  {
+    "symbol": "ADA",
+    "name": "Cardano",
+    "amount": 500,
+    "transaction_type": "deposit",
+    "timestamp": "2024-02-15T13:20:00Z",
+    "notes": "Staking rewards"
+  },
+  {
+    "symbol": "XRP",
+    "name": "XRP",
+    "amount": 200,
+    "transaction_type": "deposit",
+    "timestamp": "2024-02-20T10:00:00Z",
+    "notes": "Monthly DCA"
+  }
+]

@@ -8,20 +8,38 @@
     <button class="btn btn-primary" @click="$dispatch('open-add-asset')">Add Asset</button>
 </div>
 {{else}}
+<div class="bulk-actions" x-show="selectedAssets.length > 0" x-cloak>
+    <span class="bulk-count"><span x-text="selectedAssets.length"></span> selected</span>
+    <button class="btn btn-sm btn-danger" @click="$dispatch('open-bulk-delete-assets')">
+        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/>
+        </svg>
+        Delete Selected
+    </button>
+</div>
 <table class="data-table">
     <thead>
         <tr>
+            <th class="checkbox-col">
+                <input type="checkbox" class="bulk-checkbox" @change="toggleAllAssets($event.target.checked)" :checked="allAssetsSelected">
+            </th>
             <th>Date</th>
             <th>Type</th>
             <th>Symbol</th>
             <th class="text-right">Amount</th>
+            <th class="text-right">Value (USD)</th>
+            <th class="text-right">Current Value</th>
+            <th class="text-right">Gain/Loss</th>
             <th>Notes</th>
-            <th class="text-right">Actions</th>
+            <th></th>
         </tr>
     </thead>
     <tbody>
         {{range .Assets}}
         <tr>
+            <td class="checkbox-col">
+                <input type="checkbox" class="row-checkbox" value="{{.ID}}" @change="toggleAsset({{.ID}}, $event.target.checked)" :checked="selectedAssets.includes({{.ID}})">
+            </td>
             <td>{{.Date}}</td>
             <td>
                 <span class="badge badge-{{.TypeClass}}">{{.TransactionType}}</span>
@@ -30,6 +48,13 @@
                 <span class="asset-symbol">{{.Symbol}}</span>
             </td>
             <td class="text-right font-medium">{{.Amount}}</td>
+            <td class="text-right text-muted">{{if .HasUSDValue}}{{.USDValue}}{{else}}-{{end}}</td>
+            <td class="text-right text-muted">{{if .HasCurrentValue}}{{.CurrentValue}}{{else}}-{{end}}</td>
+            <td class="text-right">
+                {{if .GainLossUSD}}
+                <span class="gain-loss {{.GainLossClass}}">{{.GainLossUSD}} ({{.GainLossPercent}})</span>
+                {{else}}-{{end}}
+            </td>
             <td class="text-muted truncate">{{if .Notes}}{{.Notes}}{{else}}-{{end}}</td>
             <td class="text-right">
                 <div class="action-buttons">

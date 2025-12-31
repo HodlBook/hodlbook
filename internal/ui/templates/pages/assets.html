@@ -57,10 +57,10 @@
         </div>
     </section>
 
-    <section class="assets-list">
+    <section class="assets-list" x-data="assetSelection()">
         <div class="card">
             <div class="card-body">
-                <div id="assets-table-container" hx-get="/partials/assets/table" hx-trigger="load" hx-swap="innerHTML">
+                <div id="assets-table-container" hx-get="/partials/assets/table" hx-trigger="load" hx-swap="innerHTML" @htmx:after-swap="clearSelection()">
                     <div class="skeleton-table">
                         <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
                         <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
@@ -162,10 +162,89 @@
             </div>
         </div>
     </div>
+
+    <div x-data="bulkDeleteAssetModal()" @open-bulk-delete-assets.window="openBulkDelete()" @keydown.escape.window="open = false">
+        <div x-show="open" x-cloak class="modal-overlay" @click.self="open = false">
+            <div class="modal modal-sm" x-transition>
+                <div class="modal-header">
+                    <h2 class="modal-title">Delete Selected Assets</h2>
+                    <button @click="open = false" class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete <strong x-text="count"></strong> selected asset entries?</p>
+                </div>
+                <div class="modal-footer">
+                    <button @click="open = false" class="btn btn-secondary">Cancel</button>
+                    <button @click="confirmBulkDelete()" class="btn btn-danger">Delete All</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
 let cachedCryptos = null;
+let selectedAssetsStore = [];
+
+function assetSelection() {
+    return {
+        selectedAssets: selectedAssetsStore,
+        get allAssetsSelected() {
+            const checkboxes = document.querySelectorAll('#assets-table-container .row-checkbox');
+            return checkboxes.length > 0 && this.selectedAssets.length === checkboxes.length;
+        },
+        toggleAsset(id, checked) {
+            if (checked) {
+                if (!this.selectedAssets.includes(id)) {
+                    this.selectedAssets.push(id);
+                }
+            } else {
+                this.selectedAssets = this.selectedAssets.filter(i => i !== id);
+            }
+            selectedAssetsStore = this.selectedAssets;
+        },
+        toggleAllAssets(checked) {
+            const checkboxes = document.querySelectorAll('#assets-table-container .row-checkbox');
+            if (checked) {
+                this.selectedAssets = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            } else {
+                this.selectedAssets = [];
+            }
+            selectedAssetsStore = this.selectedAssets;
+        },
+        clearSelection() {
+            this.selectedAssets = [];
+            selectedAssetsStore = [];
+        }
+    }
+}
+
+function bulkDeleteAssetModal() {
+    return {
+        open: false,
+        count: 0,
+        openBulkDelete() {
+            this.count = selectedAssetsStore.length;
+            if (this.count > 0) {
+                this.open = true;
+            }
+        },
+        confirmBulkDelete() {
+            fetch('/partials/assets/bulk-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: selectedAssetsStore })
+            }).then(response => {
+                this.open = false;
+                selectedAssetsStore = [];
+                htmx.trigger('#assets-table-container', 'htmx:load');
+                return response.text();
+            }).then(html => {
+                document.getElementById('assets-table-container').innerHTML = html;
+            });
+        }
+    }
+}
 
 async function fetchCryptos() {
     if (cachedCryptos) return cachedCryptos;

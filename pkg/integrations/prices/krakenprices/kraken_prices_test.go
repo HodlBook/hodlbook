@@ -1,4 +1,4 @@
-package binanceprices
+package krakenprices
 
 import (
 	"encoding/json"
@@ -22,12 +22,13 @@ func TestPriceFetcher_Fetch(t *testing.T) {
 
 	if !isIntegration() {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			resp := struct {
-				Symbol string `json:"symbol"`
-				Price  string `json:"price"`
-			}{
-				Symbol: "BTCUSD",
-				Price:  "87267.53",
+			resp := tickerResponse{
+				Error: []string{},
+				Result: map[string]tickerResultEntry{
+					"XXBTZUSD": {
+						Close: []string{"87267.53", "0.001"},
+					},
+				},
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(resp)
@@ -53,12 +54,12 @@ func TestPriceFetcher_FetchMany(t *testing.T) {
 
 	if !isIntegration() {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			resp := []struct {
-				Symbol string `json:"symbol"`
-				Price  string `json:"price"`
-			}{
-				{Symbol: "BTCUSDT", Price: "87222.51"},
-				{Symbol: "ETHUSDT", Price: "2933.91"},
+			resp := tickerResponse{
+				Error: []string{},
+				Result: map[string]tickerResultEntry{
+					"XXBTZUSD": {Close: []string{"87222.51", "0.001"}},
+					"XETHZUSD": {Close: []string{"2933.91", "0.01"}},
+				},
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(resp)
@@ -92,10 +93,10 @@ func TestPriceFetcher_FetchMany_StablecoinsReturnOne(t *testing.T) {
 
 	if !isIntegration() {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			resp := []struct {
-				Symbol string `json:"symbol"`
-				Price  string `json:"price"`
-			}{}
+			resp := tickerResponse{
+				Error:  []string{},
+				Result: map[string]tickerResultEntry{},
+			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(resp)
 		}))
@@ -137,17 +138,43 @@ func TestPriceFetcher_Fetch_HTTPError(t *testing.T) {
 	assert.Contains(t, err.Error(), "429")
 }
 
+func TestPriceFetcher_Fetch_APIError(t *testing.T) {
+	if isIntegration() {
+		t.Skip("skipping API error test in integration mode")
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := tickerResponse{
+			Error:  []string{"EQuery:Unknown asset pair"},
+			Result: map[string]tickerResultEntry{},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	fetcher := NewPriceFetcher()
+	fetcher.BaseURL = server.URL
+
+	price := &prices.Price{Asset: prices.Asset{Name: "Unknown", Symbol: "XXX"}}
+	err := fetcher.Fetch(price)
+
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "Unknown asset pair")
+}
+
 func TestPriceFetcher_FetchAll(t *testing.T) {
 	fetcher := NewPriceFetcher()
 
 	if !isIntegration() {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			resp := []struct {
-				Symbol string `json:"symbol"`
-				Price  string `json:"price"`
-			}{
-				{Symbol: "BTCUSD", Price: "87000.0"},
-				{Symbol: "ETHUSDT", Price: "2900.0"},
+			resp := tickerResponse{
+				Error: []string{},
+				Result: map[string]tickerResultEntry{
+					"XXBTZUSD": {Close: []string{"87000.0", "0.001"}},
+					"XETHZUSD": {Close: []string{"2900.0", "0.01"}},
+					"XXBTZEUR": {Close: []string{"80000.0", "0.001"}},
+				},
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(resp)
@@ -167,9 +194,23 @@ func TestPriceFetcher_FetchAll(t *testing.T) {
 		}
 	} else {
 		assert.Len(t, allPrices, 2)
-		assert.Equal(t, "BTC", allPrices[0].Asset.Symbol)
-		assert.Equal(t, 87000.0, allPrices[0].Value)
-		assert.Equal(t, "ETH", allPrices[1].Asset.Symbol)
-		assert.Equal(t, 2900.0, allPrices[1].Value)
+		priceMap := make(map[string]float64)
+		for _, p := range allPrices {
+			priceMap[p.Asset.Symbol] = p.Value
+		}
+		assert.Equal(t, 87000.0, priceMap["BTC"])
+		assert.Equal(t, 2900.0, priceMap["ETH"])
 	}
+}
+
+func TestToKrakenPair(t *testing.T) {
+	assert.Equal(t, "XXBTZUSD", toKrakenPair("BTC"))
+	assert.Equal(t, "XETHZUSD", toKrakenPair("ETH"))
+	assert.Equal(t, "SOLUSD", toKrakenPair("SOL"))
+}
+
+func TestFromKrakenPair(t *testing.T) {
+	assert.Equal(t, "BTC", fromKrakenPair("XXBTZUSD"))
+	assert.Equal(t, "ETH", fromKrakenPair("XETHZUSD"))
+	assert.Equal(t, "SOL", fromKrakenPair("SOLUSD"))
 }

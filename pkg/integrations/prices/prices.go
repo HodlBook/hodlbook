@@ -7,6 +7,7 @@ import (
 
 	"hodlbook/pkg/integrations/prices/binanceprices"
 	"hodlbook/pkg/integrations/prices/coingeckoprices"
+	"hodlbook/pkg/integrations/prices/krakenprices"
 	"hodlbook/pkg/types/prices"
 )
 
@@ -69,6 +70,7 @@ func (c *cache) SetBySymbol(symbol string, value float64) {
 }
 
 type PriceService struct {
+	kraken    prices.PriceFetcher
 	binance   prices.PriceFetcher
 	coingecko prices.PriceFetcher
 	cache     cache
@@ -76,6 +78,7 @@ type PriceService struct {
 
 func NewPriceService() *PriceService {
 	return &PriceService{
+		kraken:    krakenprices.NewPriceFetcher(),
 		binance:   binanceprices.NewPriceFetcher(),
 		coingecko: coingeckoprices.NewPriceFetcher(),
 	}
@@ -87,7 +90,14 @@ func (p *PriceService) Fetch(price *prices.Price) error {
 		return nil
 	}
 
-	err := p.binance.Fetch(price)
+	err := p.kraken.Fetch(price)
+	if err == nil {
+		p.cache.SetBySymbol(price.Asset.Symbol, price.Value)
+		return nil
+	}
+	krakenErr := fmt.Errorf("kraken error: %w", err)
+
+	err = p.binance.Fetch(price)
 	if err == nil {
 		p.cache.SetBySymbol(price.Asset.Symbol, price.Value)
 		return nil
@@ -101,7 +111,7 @@ func (p *PriceService) Fetch(price *prices.Price) error {
 	}
 	coingeckoErr := fmt.Errorf("coingecko error: %w", err)
 
-	return fmt.Errorf("%w; %w", binanceErr, coingeckoErr)
+	return fmt.Errorf("%w; %w; %w", krakenErr, binanceErr, coingeckoErr)
 }
 
 func (p *PriceService) FetchMany(pairs ...*prices.Price) error {
@@ -131,9 +141,9 @@ func (p *PriceService) FetchAll() ([]prices.Price, error) {
 
 	merged := make(map[string]prices.Price)
 
-	cgPrices, cgErr := p.coingecko.FetchAll()
-	if cgErr == nil {
-		for _, price := range cgPrices {
+	krakenPrices, krakenErr := p.kraken.FetchAll()
+	if krakenErr == nil {
+		for _, price := range krakenPrices {
 			symbol := price.Asset.Symbol
 			merged[symbol] = price
 		}
@@ -143,21 +153,29 @@ func (p *PriceService) FetchAll() ([]prices.Price, error) {
 	if binErr == nil {
 		for _, price := range binPrices {
 			symbol := price.Asset.Symbol
-			if existing, ok := merged[symbol]; ok {
-				// Keep CoinGecko name but use Binance price if CoinGecko had no price
-				if existing.Value == 0 && price.Value > 0 {
-					existing.Value = price.Value
-					merged[symbol] = existing
-				}
-			} else {
-				// Add Binance-only assets
+			if _, ok := merged[symbol]; !ok {
 				merged[symbol] = price
 			}
 		}
 	}
 
-	if cgErr != nil && binErr != nil {
-		return nil, fmt.Errorf("coingecko: %w; binance: %w", cgErr, binErr)
+	cgPrices, cgErr := p.coingecko.FetchAll()
+	if cgErr == nil {
+		for _, price := range cgPrices {
+			symbol := price.Asset.Symbol
+			if existing, ok := merged[symbol]; ok {
+				if existing.Asset.Name == existing.Asset.Symbol {
+					existing.Asset.Name = price.Asset.Name
+					merged[symbol] = existing
+				}
+			} else {
+				merged[symbol] = price
+			}
+		}
+	}
+
+	if krakenErr != nil && binErr != nil && cgErr != nil {
+		return nil, fmt.Errorf("kraken: %w; binance: %w; coingecko: %w", krakenErr, binErr, cgErr)
 	}
 
 	pricesList := make([]prices.Price, 0, len(merged))

@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"fmt"
 	"net/http"
 	"sort"
 	"strconv"
@@ -70,6 +71,13 @@ type AssetRow struct {
 	Date            string
 	Timestamp       string
 	Notes           string
+	USDValue        string
+	HasUSDValue     bool
+	CurrentValue    string
+	HasCurrentValue bool
+	GainLossUSD     string
+	GainLossPercent string
+	GainLossClass   string
 }
 
 func (h *AssetsPageHandler) Table(c *gin.Context) {
@@ -131,6 +139,26 @@ func (h *AssetsPageHandler) Table(c *gin.Context) {
 
 	paginated := filtered[start:end]
 
+	queries := make([]repo.AssetPriceQuery, len(paginated))
+	for i, asset := range paginated {
+		queries[i] = repo.AssetPriceQuery{
+			Symbol:    asset.Symbol,
+			Timestamp: asset.Timestamp,
+		}
+	}
+	historicPrices, _ := h.repo.GetPricesAtTimes(queries, "USD")
+
+	// Fetch current prices for all symbols in paginated assets
+	currentPrices := make(map[string]float64)
+	if h.priceFetcher != nil {
+		allPrices, err := h.priceFetcher.FetchAll()
+		if err == nil {
+			for _, p := range allPrices {
+				currentPrices[p.Asset.Symbol] = p.Value
+			}
+		}
+	}
+
 	var rows []AssetRow
 	for _, asset := range paginated {
 		typeClass := "neutral"
@@ -139,6 +167,41 @@ func (h *AssetsPageHandler) Table(c *gin.Context) {
 			typeClass = "positive"
 		case "withdraw":
 			typeClass = "negative"
+		}
+
+		var usdValue string
+		var historicPrice float64
+		hasUSDValue := false
+		if priceMap, ok := historicPrices[asset.Symbol]; ok {
+			if price, ok := priceMap[asset.Timestamp.Unix()]; ok {
+				historicPrice = price
+				usdValue = formatPrice(asset.Amount * price)
+				hasUSDValue = true
+			}
+		}
+
+		var currentValue, gainLossUSD, gainLossPercent, gainLossClass string
+		hasCurrentValue := false
+		if currentPrice, ok := currentPrices[asset.Symbol]; ok {
+			currentValue = formatPrice(asset.Amount * currentPrice)
+			hasCurrentValue = true
+
+			if hasUSDValue && historicPrice > 0 {
+				historicValue := asset.Amount * historicPrice
+				currentVal := asset.Amount * currentPrice
+				diff := currentVal - historicValue
+				pct := (diff / historicValue) * 100
+
+				if diff >= 0 {
+					gainLossUSD = "+" + formatPrice(diff)
+					gainLossPercent = fmt.Sprintf("+%.2f%%", pct)
+					gainLossClass = "positive"
+				} else {
+					gainLossUSD = formatPrice(diff)
+					gainLossPercent = fmt.Sprintf("%.2f%%", pct)
+					gainLossClass = "negative"
+				}
+			}
 		}
 
 		rows = append(rows, AssetRow{
@@ -152,6 +215,13 @@ func (h *AssetsPageHandler) Table(c *gin.Context) {
 			Date:            asset.Timestamp.Format("Jan 2, 2006 15:04"),
 			Timestamp:       asset.Timestamp.Format("2006-01-02T15:04"),
 			Notes:           asset.Notes,
+			USDValue:        usdValue,
+			HasUSDValue:     hasUSDValue,
+			CurrentValue:    currentValue,
+			HasCurrentValue: hasCurrentValue,
+			GainLossUSD:     gainLossUSD,
+			GainLossPercent: gainLossPercent,
+			GainLossClass:   gainLossClass,
 		})
 	}
 
@@ -293,6 +363,27 @@ func (h *AssetsPageHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	h.Table(c)
+}
+
+func (h *AssetsPageHandler) BulkDelete(c *gin.Context) {
+	var req struct {
+		IDs []int64 `json:"ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 {
+		c.Header("HX-Trigger", `{"show-toast": {"message": "No assets selected", "type": "error"}}`)
+		h.Table(c)
+		return
+	}
+
+	deleted := 0
+	for _, id := range req.IDs {
+		if err := h.repo.DeleteAsset(id); err == nil {
+			deleted++
+		}
+	}
+
+	c.Header("HX-Trigger", fmt.Sprintf(`{"show-toast": {"message": "%d assets deleted", "type": "success"}}`, deleted))
 	h.Table(c)
 }
 

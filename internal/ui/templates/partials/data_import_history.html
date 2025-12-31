@@ -1,0 +1,87 @@
+{{if .Imports}}
+<table class="table">
+    <thead>
+        <tr>
+            <th>Date</th>
+            <th>Filename</th>
+            <th>Format</th>
+            <th>Type</th>
+            <th>Results</th>
+            <th>Status</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Imports}}
+        <tr>
+            <td>{{.CreatedAt}}</td>
+            <td>{{.Filename}}</td>
+            <td>{{.Format}}</td>
+            <td>{{.EntityType}}</td>
+            <td>
+                <span class="stat-success">{{.ImportedRows}}</span> / {{.TotalRows}}
+                {{if .HasErrors}}<span class="stat-error">({{.FailedRows}} failed)</span>{{end}}
+            </td>
+            <td>
+                <span class="badge badge-{{if eq .Status "completed"}}success{{else if eq .Status "partial"}}warning{{else}}danger{{end}}">
+                    {{.Status}}
+                </span>
+            </td>
+            <td>
+                <button class="btn btn-sm btn-danger"
+                    @click="deleteImportLog({{.ID}})"
+                    title="Delete import log">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                </button>
+            </td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{else}}
+<p class="empty-state">No import history yet.</p>
+{{end}}
+
+<style>
+.stat-success {
+    color: var(--success);
+    font-weight: 600;
+}
+
+.stat-error {
+    color: var(--danger);
+    font-size: 0.85em;
+}
+
+.badge {
+    display: inline-block;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.badge-success {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+}
+
+.badge-warning {
+    background: rgba(245, 158, 11, 0.2);
+    color: var(--warning);
+}
+
+.badge-danger {
+    background: rgba(239, 68, 68, 0.2);
+    color: var(--danger);
+}
+
+.empty-state {
+    text-align: center;
+    color: var(--text-muted);
+    padding: 2rem;
+}
+</style>

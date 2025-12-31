@@ -70,10 +70,10 @@
         </div>
     </section>
 
-    <section class="exchanges-list">
+    <section class="exchanges-list" x-data="exchangeSelection()">
         <div class="card">
             <div class="card-body">
-                <div id="exchanges-table-container" hx-get="/partials/exchanges/table" hx-trigger="load" hx-swap="innerHTML">
+                <div id="exchanges-table-container" hx-get="/partials/exchanges/table" hx-trigger="load" hx-swap="innerHTML" @htmx:after-swap="clearSelection()">
                     <div class="skeleton-table">
                         <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
                         <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
@@ -255,10 +255,89 @@
             </div>
         </div>
     </div>
+
+    <div x-data="bulkDeleteExchangeModal()" @open-bulk-delete-exchanges.window="openBulkDelete()" @keydown.escape.window="open = false">
+        <div x-show="open" x-cloak class="modal-overlay" @click.self="open = false">
+            <div class="modal modal-sm" x-transition>
+                <div class="modal-header">
+                    <h2 class="modal-title">Delete Selected Exchanges</h2>
+                    <button @click="open = false" class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete <strong x-text="count"></strong> selected exchanges?</p>
+                </div>
+                <div class="modal-footer">
+                    <button @click="open = false" class="btn btn-secondary">Cancel</button>
+                    <button @click="confirmBulkDelete()" class="btn btn-danger">Delete All</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
 let cachedExchangeCryptos = null;
+let selectedExchangesStore = [];
+
+function exchangeSelection() {
+    return {
+        selectedExchanges: selectedExchangesStore,
+        get allExchangesSelected() {
+            const checkboxes = document.querySelectorAll('#exchanges-table-container .row-checkbox');
+            return checkboxes.length > 0 && this.selectedExchanges.length === checkboxes.length;
+        },
+        toggleExchange(id, checked) {
+            if (checked) {
+                if (!this.selectedExchanges.includes(id)) {
+                    this.selectedExchanges.push(id);
+                }
+            } else {
+                this.selectedExchanges = this.selectedExchanges.filter(i => i !== id);
+            }
+            selectedExchangesStore = this.selectedExchanges;
+        },
+        toggleAllExchanges(checked) {
+            const checkboxes = document.querySelectorAll('#exchanges-table-container .row-checkbox');
+            if (checked) {
+                this.selectedExchanges = Array.from(checkboxes).map(cb => parseInt(cb.value));
+            } else {
+                this.selectedExchanges = [];
+            }
+            selectedExchangesStore = this.selectedExchanges;
+        },
+        clearSelection() {
+            this.selectedExchanges = [];
+            selectedExchangesStore = [];
+        }
+    }
+}
+
+function bulkDeleteExchangeModal() {
+    return {
+        open: false,
+        count: 0,
+        openBulkDelete() {
+            this.count = selectedExchangesStore.length;
+            if (this.count > 0) {
+                this.open = true;
+            }
+        },
+        confirmBulkDelete() {
+            fetch('/partials/exchanges/bulk-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ ids: selectedExchangesStore })
+            }).then(response => {
+                this.open = false;
+                selectedExchangesStore = [];
+                refreshHoldings();
+                return response.text();
+            }).then(html => {
+                document.getElementById('exchanges-table-container').innerHTML = html;
+            });
+        }
+    }
+}
 
 async function fetchExchangeCryptos() {
     if (cachedExchangeCryptos) return cachedExchangeCryptos;

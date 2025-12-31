@@ -2119,3 +2119,58 @@ a.usd-hint:hover {
     background-color: var(--border-color);
     margin: 8px 0;
 }
+
+/* Bulk Selection */
+.checkbox-col {
+    width: 40px;
+    text-align: center;
+}
+
+.checkbox-col input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: var(--accent-primary);
+}
+
+.bulk-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background-color: var(--bg-tertiary);
+    border-radius: 8px;
+    margin-bottom: 12px;
+    border: 1px solid var(--border-color);
+}
+
+.bulk-count {
+    font-size: calc(13px * var(--ui-scale));
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+/* Gain/Loss */
+.gain-loss {
+    font-size: calc(13px * var(--ui-scale));
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.gain-loss.positive {
+    color: var(--positive);
+}
+
+.gain-loss.negative {
+    color: var(--negative);
+}
+
+/* Spin animation */
+.spin {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
