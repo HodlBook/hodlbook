@@ -164,10 +164,8 @@ func (p *PriceService) FetchAll() ([]prices.Price, error) {
 		for _, price := range cgPrices {
 			symbol := price.Asset.Symbol
 			if existing, ok := merged[symbol]; ok {
-				if existing.Asset.Name == existing.Asset.Symbol {
-					existing.Asset.Name = price.Asset.Name
-					merged[symbol] = existing
-				}
+				existing.Asset.Name = price.Asset.Name
+				merged[symbol] = existing
 			} else {
 				merged[symbol] = price
 			}

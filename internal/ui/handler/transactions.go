@@ -58,6 +58,8 @@ type AssetsTableData struct {
 	TotalPages int
 	HasPrev    bool
 	HasNext    bool
+	SortBy     string
+	SortDir    string
 }
 
 type AssetRow struct {
@@ -86,6 +88,8 @@ func (h *AssetsPageHandler) Table(c *gin.Context) {
 	fromStr := c.Query("from")
 	toStr := c.Query("to")
 	pageStr := c.DefaultQuery("page", "1")
+	sortBy := c.DefaultQuery("sort", "date")
+	sortDir := c.DefaultQuery("dir", "desc")
 
 	page, _ := strconv.Atoi(pageStr)
 	if page < 1 {
@@ -118,9 +122,7 @@ func (h *AssetsPageHandler) Table(c *gin.Context) {
 		filtered = append(filtered, asset)
 	}
 
-	sort.Slice(filtered, func(i, j int) bool {
-		return filtered[i].Timestamp.After(filtered[j].Timestamp)
-	})
+	sortAssets(filtered, sortBy, sortDir)
 
 	total := len(filtered)
 	totalPages := (total + limit - 1) / limit
@@ -232,10 +234,34 @@ func (h *AssetsPageHandler) Table(c *gin.Context) {
 		TotalPages: totalPages,
 		HasPrev:    page > 1,
 		HasNext:    page < totalPages,
+		SortBy:     sortBy,
+		SortDir:    sortDir,
 	}
 
 	c.Header("Content-Type", "text/html; charset=utf-8")
 	c.HTML(http.StatusOK, "assets_table.html", data)
+}
+
+func sortAssets(assets []models.Asset, sortBy, sortDir string) {
+	sort.Slice(assets, func(i, j int) bool {
+		var less bool
+		switch sortBy {
+		case "date":
+			less = assets[i].Timestamp.Before(assets[j].Timestamp)
+		case "type":
+			less = assets[i].TransactionType < assets[j].TransactionType
+		case "symbol":
+			less = assets[i].Symbol < assets[j].Symbol
+		case "amount":
+			less = assets[i].Amount < assets[j].Amount
+		default:
+			less = assets[i].Timestamp.Before(assets[j].Timestamp)
+		}
+		if sortDir == "desc" {
+			return !less
+		}
+		return less
+	})
 }
 
 type CreateAssetRequest struct {

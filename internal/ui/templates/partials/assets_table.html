@@ -8,6 +8,8 @@
     <button class="btn btn-primary" @click="$dispatch('open-add-asset')">Add Asset</button>
 </div>
 {{else}}
+<input type="hidden" name="sort" value="{{.SortBy}}" class="sort-input">
+<input type="hidden" name="dir" value="{{.SortDir}}" class="sort-input">
 <div class="bulk-actions" x-show="selectedAssets.length > 0" x-cloak>
     <span class="bulk-count"><span x-text="selectedAssets.length"></span> selected</span>
     <button class="btn btn-sm btn-danger" @click="$dispatch('open-bulk-delete-assets')">
@@ -23,10 +25,30 @@
             <th class="checkbox-col">
                 <input type="checkbox" class="bulk-checkbox" @change="toggleAllAssets($event.target.checked)" :checked="allAssetsSelected">
             </th>
-            <th>Date</th>
-            <th>Type</th>
-            <th>Symbol</th>
-            <th class="text-right">Amount</th>
+            <th class="sortable{{if eq .SortBy "date"}} sorted {{.SortDir}}{{end}}"
+                hx-get="/partials/assets/table?sort=date&dir={{if and (eq .SortBy "date") (eq .SortDir "desc")}}asc{{else}}desc{{end}}"
+                hx-target="#assets-table-container"
+                hx-include=".filters-row select, .filters-row input">
+                Date <span class="sort-icon"></span>
+            </th>
+            <th class="sortable{{if eq .SortBy "type"}} sorted {{.SortDir}}{{end}}"
+                hx-get="/partials/assets/table?sort=type&dir={{if and (eq .SortBy "type") (eq .SortDir "asc")}}desc{{else}}asc{{end}}"
+                hx-target="#assets-table-container"
+                hx-include=".filters-row select, .filters-row input">
+                Type <span class="sort-icon"></span>
+            </th>
+            <th class="sortable{{if eq .SortBy "symbol"}} sorted {{.SortDir}}{{end}}"
+                hx-get="/partials/assets/table?sort=symbol&dir={{if and (eq .SortBy "symbol") (eq .SortDir "asc")}}desc{{else}}asc{{end}}"
+                hx-target="#assets-table-container"
+                hx-include=".filters-row select, .filters-row input">
+                Symbol <span class="sort-icon"></span>
+            </th>
+            <th class="text-right sortable{{if eq .SortBy "amount"}} sorted {{.SortDir}}{{end}}"
+                hx-get="/partials/assets/table?sort=amount&dir={{if and (eq .SortBy "amount") (eq .SortDir "desc")}}asc{{else}}desc{{end}}"
+                hx-target="#assets-table-container"
+                hx-include=".filters-row select, .filters-row input">
+                Amount <span class="sort-icon"></span>
+            </th>
             <th class="text-right">Value (USD)</th>
             <th class="text-right">Current Value</th>
             <th class="text-right">Gain/Loss</th>
@@ -83,13 +105,13 @@
     <span class="pagination-info">Page {{.Page}} of {{.TotalPages}}</span>
     <div class="pagination-controls">
         <button class="btn btn-sm" {{if not .HasPrev}}disabled{{end}}
-            hx-get="/partials/assets/table?page={{if .HasPrev}}{{sub .Page 1}}{{else}}1{{end}}"
+            hx-get="/partials/assets/table?page={{if .HasPrev}}{{sub .Page 1}}{{else}}1{{end}}&sort={{.SortBy}}&dir={{.SortDir}}"
             hx-target="#assets-table-container"
             hx-include=".filters-row select, .filters-row input">
             Prev
         </button>
         <button class="btn btn-sm" {{if not .HasNext}}disabled{{end}}
-            hx-get="/partials/assets/table?page={{if .HasNext}}{{add .Page 1}}{{else}}{{.TotalPages}}{{end}}"
+            hx-get="/partials/assets/table?page={{if .HasNext}}{{add .Page 1}}{{else}}{{.TotalPages}}{{end}}&sort={{.SortBy}}&dir={{.SortDir}}"
             hx-target="#assets-table-container"
             hx-include=".filters-row select, .filters-row input">
             Next

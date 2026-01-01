@@ -11,10 +11,11 @@ import (
 
 	"hodlbook/internal/models"
 	"hodlbook/internal/repo"
+	"hodlbook/pkg/types/prices"
 
+	"github.com/glebarez/sqlite"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
-	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 )
 
@@ -483,4 +484,154 @@ func (s *ControllerTestSuite) Test93_Asset_DeleteNotFound() {
 
 func TestControllers(t *testing.T) {
 	suite.Run(t, new(ControllerTestSuite))
+}
+
+type mockPriceFetcher struct {
+	prices map[string]float64
+}
+
+func (m *mockPriceFetcher) Fetch(price *prices.Price) error {
+	if val, ok := m.prices[price.Asset.Symbol]; ok {
+		price.Value = val
+	}
+	return nil
+}
+
+func (m *mockPriceFetcher) FetchMany(pairs ...*prices.Price) error {
+	for _, p := range pairs {
+		if val, ok := m.prices[p.Asset.Symbol]; ok {
+			p.Value = val
+		}
+	}
+	return nil
+}
+
+func (m *mockPriceFetcher) FetchAll() ([]prices.Price, error) {
+	return nil, nil
+}
+
+func TestUpdateAsset_EnsuresHistoricValue(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&models.Asset{}, &models.AssetHistoricValue{}); err != nil {
+		t.Fatal(err)
+	}
+
+	repository, _ := repo.New(db)
+	mockFetcher := &mockPriceFetcher{
+		prices: map[string]float64{"BARD": 0.78},
+	}
+
+	ctrl, _ := New(
+		WithRepository(repository),
+		WithPriceFetcher(mockFetcher),
+	)
+
+	asset := &models.Asset{
+		Symbol:          "BARD",
+		Name:            "lombard-protocol",
+		Amount:          100,
+		TransactionType: "deposit",
+		Timestamp:       time.Now(),
+	}
+	repository.CreateAsset(asset)
+
+	router := gin.New()
+	router.PUT("/api/assets/:id", ctrl.UpdateAsset)
+
+	updated := models.Asset{
+		Symbol:          "BARD",
+		Name:            "lombard-protocol",
+		Amount:          150,
+		TransactionType: "deposit",
+		Timestamp:       time.Now(),
+	}
+	body, _ := json.Marshal(updated)
+
+	req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/assets/%d", asset.ID), bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	history, _ := repository.SelectAllBySymbol("BARD")
+	if len(history) != 1 {
+		t.Fatalf("expected 1 historic value, got %d", len(history))
+	}
+	if history[0].Value != 0.78 {
+		t.Errorf("expected value 0.78, got %f", history[0].Value)
+	}
+}
+
+func TestUpdateAsset_SkipsIfHistoricValueExists(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := db.AutoMigrate(&models.Asset{}, &models.AssetHistoricValue{}); err != nil {
+		t.Fatal(err)
+	}
+
+	repository, _ := repo.New(db)
+	mockFetcher := &mockPriceFetcher{
+		prices: map[string]float64{"BTC": 95000},
+	}
+
+	ctrl, _ := New(
+		WithRepository(repository),
+		WithPriceFetcher(mockFetcher),
+	)
+
+	asset := &models.Asset{
+		Symbol:          "BTC",
+		Name:            "bitcoin",
+		Amount:          1,
+		TransactionType: "deposit",
+		Timestamp:       time.Now(),
+	}
+	repository.CreateAsset(asset)
+
+	repository.Insert(&models.AssetHistoricValue{
+		Symbol:    "BTC",
+		Value:     87000,
+		Timestamp: time.Now().Add(-24 * time.Hour),
+	})
+
+	router := gin.New()
+	router.PUT("/api/assets/:id", ctrl.UpdateAsset)
+
+	updated := models.Asset{
+		Symbol:          "BTC",
+		Name:            "bitcoin",
+		Amount:          2,
+		TransactionType: "deposit",
+		Timestamp:       time.Now(),
+	}
+	body, _ := json.Marshal(updated)
+
+	req := httptest.NewRequest(http.MethodPut, fmt.Sprintf("/api/assets/%d", asset.ID), bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	history, _ := repository.SelectAllBySymbol("BTC")
+	if len(history) != 1 {
+		t.Fatalf("expected 1 historic value (unchanged), got %d", len(history))
+	}
+	if history[0].Value != 87000 {
+		t.Errorf("expected original value 87000, got %f", history[0].Value)
+	}
 }

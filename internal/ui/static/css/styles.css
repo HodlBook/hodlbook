@@ -669,6 +669,49 @@ body {
     border-bottom: 1px solid var(--border-color);
 }
 
+.data-table th.sortable {
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s ease;
+}
+
+.data-table th.sortable:hover {
+    color: var(--text-primary);
+}
+
+.data-table th.sortable .sort-icon::after {
+    content: '';
+    display: inline-block;
+    width: 0;
+    height: 0;
+    margin-left: 6px;
+    vertical-align: middle;
+    border-left: 4px solid transparent;
+    border-right: 4px solid transparent;
+    border-bottom: 4px solid var(--text-tertiary);
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.data-table th.sortable:hover .sort-icon::after {
+    opacity: 0.5;
+}
+
+.data-table th.sortable.sorted .sort-icon::after {
+    opacity: 1;
+    border-bottom-color: var(--accent-primary);
+}
+
+.data-table th.sortable.sorted.desc .sort-icon::after {
+    border-bottom: 4px solid var(--accent-primary);
+    border-top: none;
+}
+
+.data-table th.sortable.sorted.asc .sort-icon::after {
+    border-top: 4px solid var(--accent-primary);
+    border-bottom: none;
+}
+
 .data-table tbody tr:hover {
     background-color: var(--bg-tertiary);
 }
