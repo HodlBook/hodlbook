@@ -371,7 +371,39 @@ func (h *AssetsPageHandler) Update(c *gin.Context) {
 		return
 	}
 
+	h.ensurePriceAtTimestamp(asset.Symbol, asset.Name, asset.Timestamp)
+
 	h.Table(c)
+}
+
+func (h *AssetsPageHandler) ensurePriceAtTimestamp(symbol, name string, timestamp time.Time) {
+	if h.priceFetcher == nil {
+		return
+	}
+
+	allPrices, err := h.priceFetcher.FetchAll()
+	if err != nil {
+		return
+	}
+
+	var priceValue float64
+	for _, p := range allPrices {
+		if p.Asset.Symbol == symbol {
+			priceValue = p.Value
+			break
+		}
+	}
+
+	if priceValue == 0 {
+		return
+	}
+
+	h.repo.CreatePrice(&models.Price{
+		Symbol:    symbol,
+		Currency:  "USD",
+		Price:     priceValue,
+		Timestamp: timestamp,
+	})
 }
 
 func (h *AssetsPageHandler) Delete(c *gin.Context) {

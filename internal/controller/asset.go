@@ -8,7 +8,6 @@ import (
 
 	"hodlbook/internal/models"
 	"hodlbook/internal/repo"
-	"hodlbook/pkg/types/prices"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -160,7 +159,7 @@ func (c *Controller) UpdateAsset(ctx *gin.Context) {
 		return
 	}
 
-	c.ensureHistoricValue(asset.Symbol, asset.Name)
+	c.ensurePriceAtTimestamp(asset.Symbol, asset.Name, asset.Timestamp)
 
 	ctx.JSON(http.StatusOK, asset)
 }
@@ -206,36 +205,32 @@ func (c *Controller) GetUniqueSymbols(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, symbols)
 }
 
-func (c *Controller) ensureHistoricValue(symbol, name string) {
+func (c *Controller) ensurePriceAtTimestamp(symbol, name string, timestamp time.Time) {
 	if c.priceFetcher == nil {
 		return
 	}
 
-	history, err := c.repo.SelectAllBySymbol(symbol)
+	allPrices, err := c.priceFetcher.FetchAll()
 	if err != nil {
 		return
 	}
 
-	hasValidHistory := false
-	for _, h := range history {
-		if h.Value > 0 {
-			hasValidHistory = true
+	var priceValue float64
+	for _, p := range allPrices {
+		if p.Asset.Symbol == symbol {
+			priceValue = p.Value
 			break
 		}
 	}
 
-	if hasValidHistory {
+	if priceValue == 0 {
 		return
 	}
 
-	price := &prices.Price{Asset: prices.Asset{Symbol: symbol, Name: name}}
-	if err := c.priceFetcher.Fetch(price); err != nil || price.Value == 0 {
-		return
-	}
-
-	c.repo.Insert(&models.AssetHistoricValue{
+	c.repo.CreatePrice(&models.Price{
 		Symbol:    symbol,
-		Value:     price.Value,
-		Timestamp: time.Now(),
+		Currency:  "USD",
+		Price:     priceValue,
+		Timestamp: timestamp,
 	})
 }

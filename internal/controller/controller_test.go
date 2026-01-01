@@ -507,17 +507,24 @@ func (m *mockPriceFetcher) FetchMany(pairs ...*prices.Price) error {
 }
 
 func (m *mockPriceFetcher) FetchAll() ([]prices.Price, error) {
-	return nil, nil
+	result := make([]prices.Price, 0, len(m.prices))
+	for symbol, value := range m.prices {
+		result = append(result, prices.Price{
+			Asset: prices.Asset{Symbol: symbol, Name: symbol},
+			Value: value,
+		})
+	}
+	return result, nil
 }
 
-func TestUpdateAsset_EnsuresHistoricValue(t *testing.T) {
+func TestUpdateAsset_CreatesPriceAtTimestamp(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.Asset{}, &models.AssetHistoricValue{}); err != nil {
+	if err := db.AutoMigrate(&models.Asset{}, &models.Price{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -531,12 +538,13 @@ func TestUpdateAsset_EnsuresHistoricValue(t *testing.T) {
 		WithPriceFetcher(mockFetcher),
 	)
 
+	assetTime := time.Now().Add(-24 * time.Hour)
 	asset := &models.Asset{
 		Symbol:          "BARD",
 		Name:            "lombard-protocol",
 		Amount:          100,
 		TransactionType: "deposit",
-		Timestamp:       time.Now(),
+		Timestamp:       assetTime,
 	}
 	repository.CreateAsset(asset)
 
@@ -548,7 +556,7 @@ func TestUpdateAsset_EnsuresHistoricValue(t *testing.T) {
 		Name:            "lombard-protocol",
 		Amount:          150,
 		TransactionType: "deposit",
-		Timestamp:       time.Now(),
+		Timestamp:       assetTime,
 	}
 	body, _ := json.Marshal(updated)
 
@@ -561,23 +569,23 @@ func TestUpdateAsset_EnsuresHistoricValue(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 
-	history, _ := repository.SelectAllBySymbol("BARD")
-	if len(history) != 1 {
-		t.Fatalf("expected 1 historic value, got %d", len(history))
+	prices, _ := repository.GetPricesBySymbolAndCurrency("BARD", "USD")
+	if len(prices) != 1 {
+		t.Fatalf("expected 1 price record, got %d", len(prices))
 	}
-	if history[0].Value != 0.78 {
-		t.Errorf("expected value 0.78, got %f", history[0].Value)
+	if prices[0].Price != 0.78 {
+		t.Errorf("expected price 0.78, got %f", prices[0].Price)
 	}
 }
 
-func TestUpdateAsset_SkipsIfHistoricValueExists(t *testing.T) {
+func TestUpdateAsset_CreatesPriceEvenIfExisting(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 
 	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
 	if err != nil {
 		t.Fatal(err)
 	}
-	if err := db.AutoMigrate(&models.Asset{}, &models.AssetHistoricValue{}); err != nil {
+	if err := db.AutoMigrate(&models.Asset{}, &models.Price{}); err != nil {
 		t.Fatal(err)
 	}
 
@@ -591,19 +599,21 @@ func TestUpdateAsset_SkipsIfHistoricValueExists(t *testing.T) {
 		WithPriceFetcher(mockFetcher),
 	)
 
+	assetTime := time.Now().Add(-24 * time.Hour)
 	asset := &models.Asset{
 		Symbol:          "BTC",
 		Name:            "bitcoin",
 		Amount:          1,
 		TransactionType: "deposit",
-		Timestamp:       time.Now(),
+		Timestamp:       assetTime,
 	}
 	repository.CreateAsset(asset)
 
-	repository.Insert(&models.AssetHistoricValue{
+	repository.CreatePrice(&models.Price{
 		Symbol:    "BTC",
-		Value:     87000,
-		Timestamp: time.Now().Add(-24 * time.Hour),
+		Currency:  "USD",
+		Price:     87000,
+		Timestamp: assetTime.Add(-48 * time.Hour),
 	})
 
 	router := gin.New()
@@ -614,7 +624,7 @@ func TestUpdateAsset_SkipsIfHistoricValueExists(t *testing.T) {
 		Name:            "bitcoin",
 		Amount:          2,
 		TransactionType: "deposit",
-		Timestamp:       time.Now(),
+		Timestamp:       assetTime,
 	}
 	body, _ := json.Marshal(updated)
 
@@ -627,11 +637,8 @@ func TestUpdateAsset_SkipsIfHistoricValueExists(t *testing.T) {
 		t.Fatalf("expected 200, got %d", w.Code)
 	}
 
-	history, _ := repository.SelectAllBySymbol("BTC")
-	if len(history) != 1 {
-		t.Fatalf("expected 1 historic value (unchanged), got %d", len(history))
-	}
-	if history[0].Value != 87000 {
-		t.Errorf("expected original value 87000, got %f", history[0].Value)
+	prices, _ := repository.GetPricesBySymbolAndCurrency("BTC", "USD")
+	if len(prices) != 2 {
+		t.Fatalf("expected 2 price records, got %d", len(prices))
 	}
 }
