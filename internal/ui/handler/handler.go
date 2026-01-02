@@ -98,6 +98,7 @@ func (h *WebHandler) Setup() error {
 	assets := NewAssetsPageHandler(h.renderer, h.repo, h.priceCache, h.priceFetcher)
 	exchanges := NewExchangesHandler(h.renderer, h.repo, h.priceCache, h.priceFetcher)
 	pricesHandler := NewPricesHandler(h.renderer, h.repo, h.priceCache)
+	dataHandler := NewDataHandler(h.renderer, h.repo)
 
 	h.engine.GET("/", dashboard.Index)
 	h.engine.GET("/partials/dashboard/summary", dashboard.Summary)
@@ -114,9 +115,11 @@ func (h *WebHandler) Setup() error {
 
 	h.engine.GET("/assets", assets.Index)
 	h.engine.GET("/partials/assets/table", assets.Table)
+	h.engine.GET("/partials/assets/holdings", assets.Holdings)
 	h.engine.POST("/partials/assets/create", assets.Create)
 	h.engine.POST("/partials/assets/update/:id", assets.Update)
 	h.engine.DELETE("/partials/assets/delete/:id", assets.Delete)
+	h.engine.POST("/partials/assets/bulk-delete", assets.BulkDelete)
 	h.engine.GET("/api/ui/assets", assets.GetAssets)
 	h.engine.GET("/api/ui/cryptos", assets.GetSupportedCryptos)
 
@@ -125,11 +128,15 @@ func (h *WebHandler) Setup() error {
 	h.engine.POST("/partials/exchanges/create", exchanges.Create)
 	h.engine.POST("/partials/exchanges/update/:id", exchanges.Update)
 	h.engine.DELETE("/partials/exchanges/delete/:id", exchanges.Delete)
+	h.engine.POST("/partials/exchanges/bulk-delete", exchanges.BulkDelete)
 	h.engine.POST("/partials/exchanges/refresh-prices", exchanges.RefreshPrices)
 	h.engine.GET("/api/ui/holdings", exchanges.GetHoldings)
 
 	h.engine.GET("/prices", pricesHandler.Index)
 	h.engine.GET("/partials/prices/table", pricesHandler.Table)
+
+	h.engine.GET("/data", dataHandler.Index)
+	h.engine.GET("/partials/data/import-history", dataHandler.ImportHistory)
 
 	h.engine.GET("/api/health", Health)
 

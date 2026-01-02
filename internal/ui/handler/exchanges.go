@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"html/template"
 	"net/http"
 	"strconv"
@@ -356,6 +357,27 @@ func (h *ExchangesHandler) Delete(c *gin.Context) {
 		return
 	}
 
+	h.Table(c)
+}
+
+func (h *ExchangesHandler) BulkDelete(c *gin.Context) {
+	var req struct {
+		IDs []int64 `json:"ids"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil || len(req.IDs) == 0 {
+		c.Header("HX-Trigger", `{"show-toast": {"message": "No exchanges selected", "type": "error"}}`)
+		h.Table(c)
+		return
+	}
+
+	deleted := 0
+	for _, id := range req.IDs {
+		if err := h.repo.DeleteExchange(id); err == nil {
+			deleted++
+		}
+	}
+
+	c.Header("HX-Trigger", fmt.Sprintf(`{"show-toast": {"message": "%d exchanges deleted", "type": "success"}}`, deleted))
 	h.Table(c)
 }
 

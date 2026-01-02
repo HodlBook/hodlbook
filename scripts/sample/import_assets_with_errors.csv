@@ -1,0 +1,8 @@
+symbol;name;amount;transaction_type;timestamp;notes
+BTC;Bitcoin;0.5;deposit;2024-01-15T10:30:00Z;Valid row
+;Missing Symbol;1.0;deposit;2024-01-16T14:00:00Z;Error: empty symbol
+ETH;Ethereum;-0.5;deposit;2024-01-17T09:00:00Z;Error: negative amount
+SOL;Solana;10;invalid_type;2024-01-18T11:00:00Z;Error: invalid transaction type
+FAKECOIN;Fake Coin;100;deposit;2024-01-19T12:00:00Z;Error: unsupported symbol
+DOGE;Dogecoin;0;deposit;2024-01-20T13:00:00Z;Error: zero amount
+ADA;Cardano;50;deposit;2024-01-21T14:00:00Z;Valid row

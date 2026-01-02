@@ -1,0 +1,58 @@
+[
+  {
+    "symbol": "BTC",
+    "name": "Bitcoin",
+    "amount": 0.5,
+    "transaction_type": "deposit",
+    "timestamp": "2024-01-15T10:30:00Z",
+    "notes": "Valid row"
+  },
+  {
+    "symbol": "",
+    "name": "Missing Symbol",
+    "amount": 1.0,
+    "transaction_type": "deposit",
+    "timestamp": "2024-01-16T14:00:00Z",
+    "notes": "Error: empty symbol"
+  },
+  {
+    "symbol": "ETH",
+    "name": "Ethereum",
+    "amount": -0.5,
+    "transaction_type": "deposit",
+    "timestamp": "2024-01-17T09:00:00Z",
+    "notes": "Error: negative amount"
+  },
+  {
+    "symbol": "SOL",
+    "name": "Solana",
+    "amount": 10,
+    "transaction_type": "invalid_type",
+    "timestamp": "2024-01-18T11:00:00Z",
+    "notes": "Error: invalid transaction type"
+  },
+  {
+    "symbol": "FAKECOIN",
+    "name": "Fake Coin",
+    "amount": 100,
+    "transaction_type": "deposit",
+    "timestamp": "2024-01-19T12:00:00Z",
+    "notes": "Error: unsupported symbol"
+  },
+  {
+    "symbol": "DOGE",
+    "name": "Dogecoin",
+    "amount": 0,
+    "transaction_type": "deposit",
+    "timestamp": "2024-01-20T13:00:00Z",
+    "notes": "Error: zero amount"
+  },
+  {
+    "symbol": "ADA",
+    "name": "Cardano",
+    "amount": 50,
+    "transaction_type": "deposit",
+    "timestamp": "2024-01-21T14:00:00Z",
+    "notes": "Valid row"
+  }
+]

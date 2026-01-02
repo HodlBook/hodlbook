@@ -27,6 +27,7 @@ func (r *Repository) Migrate() error {
 		&models.Exchange{},
 		&models.Price{},
 		&models.AssetHistoricValue{},
+		&models.ImportLog{},
 	); err != nil {
 		return err
 	}

@@ -17,6 +17,7 @@ func setupTestDB(t *testing.T) *gorm.DB {
 		&models.AssetHistoricValue{},
 		&models.Exchange{},
 		&models.Price{},
+		&models.ImportLog{},
 	))
 	return db
 }

@@ -1,4 +1,4 @@
-package binanceprices
+package defillamaprices
 
 import (
 	"encoding/json"
@@ -22,12 +22,14 @@ func TestPriceFetcher_Fetch(t *testing.T) {
 
 	if !isIntegration() {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			resp := struct {
-				Symbol string `json:"symbol"`
-				Price  string `json:"price"`
-			}{
-				Symbol: "BTCUSD",
-				Price:  "87267.53",
+			resp := map[string]interface{}{
+				"coins": map[string]interface{}{
+					"coingecko:bitcoin": map[string]interface{}{
+						"price":     87000.0,
+						"symbol":    "BTC",
+						"timestamp": 1234567890,
+					},
+				},
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(resp)
@@ -36,7 +38,7 @@ func TestPriceFetcher_Fetch(t *testing.T) {
 		fetcher.BaseURL = server.URL
 	}
 
-	price := &prices.Price{Asset: prices.Asset{Name: "Bitcoin", Symbol: "BTC"}}
+	price := &prices.Price{Asset: prices.Asset{Name: "bitcoin", Symbol: "BTC"}}
 	err := fetcher.Fetch(price)
 	require.NoError(t, err)
 
@@ -44,7 +46,7 @@ func TestPriceFetcher_Fetch(t *testing.T) {
 		assert.Greater(t, price.Value, 0.0)
 		t.Logf("BTC/USD: %f", price.Value)
 	} else {
-		assert.Equal(t, 87267.53, price.Value)
+		assert.Equal(t, 87000.0, price.Value)
 	}
 }
 
@@ -53,12 +55,17 @@ func TestPriceFetcher_FetchMany(t *testing.T) {
 
 	if !isIntegration() {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			resp := []struct {
-				Symbol string `json:"symbol"`
-				Price  string `json:"price"`
-			}{
-				{Symbol: "BTCUSDT", Price: "87222.51"},
-				{Symbol: "ETHUSDT", Price: "2933.91"},
+			resp := map[string]interface{}{
+				"coins": map[string]interface{}{
+					"coingecko:bitcoin": map[string]interface{}{
+						"price":  87000.0,
+						"symbol": "BTC",
+					},
+					"coingecko:ethereum": map[string]interface{}{
+						"price":  2900.0,
+						"symbol": "ETH",
+					},
+				},
 			}
 			w.Header().Set("Content-Type", "application/json")
 			json.NewEncoder(w).Encode(resp)
@@ -68,8 +75,8 @@ func TestPriceFetcher_FetchMany(t *testing.T) {
 	}
 
 	testPrices := []*prices.Price{
-		{Asset: prices.Asset{Name: "Bitcoin", Symbol: "BTC"}},
-		{Asset: prices.Asset{Name: "Ethereum", Symbol: "ETH"}},
+		{Asset: prices.Asset{Name: "bitcoin", Symbol: "BTC"}},
+		{Asset: prices.Asset{Name: "ethereum", Symbol: "ETH"}},
 	}
 
 	err := fetcher.FetchMany(testPrices...)
@@ -82,26 +89,13 @@ func TestPriceFetcher_FetchMany(t *testing.T) {
 			t.Logf("%s/USD: %f", p.Asset.Symbol, p.Value)
 		}
 	} else {
-		assert.Equal(t, 87222.51, testPrices[0].Value)
-		assert.Equal(t, 2933.91, testPrices[1].Value)
+		assert.Equal(t, 87000.0, testPrices[0].Value)
+		assert.Equal(t, 2900.0, testPrices[1].Value)
 	}
 }
 
 func TestPriceFetcher_FetchMany_StablecoinsReturnOne(t *testing.T) {
 	fetcher := NewPriceFetcher()
-
-	if !isIntegration() {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			resp := []struct {
-				Symbol string `json:"symbol"`
-				Price  string `json:"price"`
-			}{}
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(resp)
-		}))
-		defer server.Close()
-		fetcher.BaseURL = server.URL
-	}
 
 	testPrices := []*prices.Price{
 		{Asset: prices.Asset{Name: "USD", Symbol: "USD"}},
@@ -130,46 +124,16 @@ func TestPriceFetcher_Fetch_HTTPError(t *testing.T) {
 	fetcher := NewPriceFetcher()
 	fetcher.BaseURL = server.URL
 
-	price := &prices.Price{Asset: prices.Asset{Name: "Bitcoin", Symbol: "BTC"}}
+	price := &prices.Price{Asset: prices.Asset{Name: "bitcoin", Symbol: "BTC"}}
 	err := fetcher.Fetch(price)
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "429")
 }
 
-func TestPriceFetcher_FetchAll(t *testing.T) {
+func TestPriceFetcher_FetchAll_NotSupported(t *testing.T) {
 	fetcher := NewPriceFetcher()
-
-	if !isIntegration() {
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			resp := []struct {
-				Symbol string `json:"symbol"`
-				Price  string `json:"price"`
-			}{
-				{Symbol: "BTCUSD", Price: "87000.0"},
-				{Symbol: "ETHUSDT", Price: "2900.0"},
-			}
-			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(resp)
-		}))
-		defer server.Close()
-		fetcher.BaseURL = server.URL
-	}
-
-	allPrices, err := fetcher.FetchAll()
-	require.NoError(t, err)
-
-	if isIntegration() {
-		assert.Greater(t, len(allPrices), 0)
-		t.Logf("fetched %d prices", len(allPrices))
-		for _, p := range allPrices[:min(5, len(allPrices))] {
-			t.Logf("%s: %f", p.Asset.Symbol, p.Value)
-		}
-	} else {
-		assert.Len(t, allPrices, 2)
-		assert.Equal(t, "BTC", allPrices[0].Asset.Symbol)
-		assert.Equal(t, 87000.0, allPrices[0].Value)
-		assert.Equal(t, "ETH", allPrices[1].Asset.Symbol)
-		assert.Equal(t, 2900.0, allPrices[1].Value)
-	}
+	_, err := fetcher.FetchAll()
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "not supported")
 }

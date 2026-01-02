@@ -9,6 +9,7 @@ type Asset struct {
 	Amount          float64   `json:"amount"`
 	TransactionType string    `json:"transaction_type" gorm:"index"`
 	Notes           string    `json:"notes"`
+	PriceSource     *string   `json:"price_source,omitempty"`
 	Timestamp       time.Time `json:"timestamp"        gorm:"index"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
@@ -50,6 +51,20 @@ type Setting struct {
 	Value string `json:"value"`
 }
 
+type ImportLog struct {
+	ID           int64     `json:"id"            gorm:"primaryKey"`
+	Filename     string    `json:"filename"`
+	Format       string    `json:"format"`
+	EntityType   string    `json:"entity_type"`
+	TotalRows    int       `json:"total_rows"`
+	ImportedRows int       `json:"imported_rows"`
+	FailedRows   int       `json:"failed_rows"`
+	Status       string    `json:"status"`
+	FailedData   string    `json:"failed_data"   gorm:"type:text"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
 func (Asset) TableName() string {
 	return "assets"
 }
@@ -64,4 +79,8 @@ func (Exchange) TableName() string {
 
 func (Price) TableName() string {
 	return "prices"
+}
+
+func (ImportLog) TableName() string {
+	return "import_logs"
 }

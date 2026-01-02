@@ -27,4 +27,14 @@ type Repository interface {
 	// Price history
 	SelectAllBySymbol(symbol string) ([]models.AssetHistoricValue, error)
 	Insert(value *models.AssetHistoricValue) error
+
+	// Prices
+	CreatePrice(price *models.Price) error
+
+	// Import logs
+	CreateImportLog(log *models.ImportLog) error
+	GetImportLogByID(id int64) (*models.ImportLog, error)
+	ListImportLogs() ([]models.ImportLog, error)
+	UpdateImportLog(log *models.ImportLog) error
+	DeleteImportLog(id int64) error
 }

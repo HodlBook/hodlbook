@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"sync"
 	"time"
 
 	"hodlbook/internal/models"
+	priceService "hodlbook/pkg/integrations/prices"
 	tickerScheduler "hodlbook/pkg/integrations/scheduler"
 	"hodlbook/pkg/types/cache"
 	"hodlbook/pkg/types/prices"
@@ -23,6 +25,11 @@ type AssetRepository interface {
 	GetUniqueExchangeSymbols() ([]string, error)
 }
 
+type assetMeta struct {
+	Name        string
+	PriceSource string
+}
+
 type LivePriceService struct {
 	ctx          context.Context
 	logger       *slog.Logger
@@ -33,6 +40,8 @@ type LivePriceService struct {
 	scheduler    scheduler.Scheduler
 	syncInterval time.Duration
 	lastSync     time.Time
+	assetMeta    map[string]assetMeta
+	assetMetaMu  sync.RWMutex
 }
 
 type LivePriceOption func(*LivePriceService)
@@ -101,6 +110,7 @@ func (s *LivePriceService) IsValid() error {
 func NewLivePriceService(opts ...LivePriceOption) (*LivePriceService, error) {
 	s := &LivePriceService{
 		syncInterval: time.Hour,
+		assetMeta:    make(map[string]assetMeta),
 	}
 
 	for _, opt := range opts {
@@ -137,6 +147,13 @@ func (s *LivePriceService) Stop() {
 	s.scheduler.Stop()
 }
 
+func (s *LivePriceService) ForceSync() error {
+	if err := s.syncFromDB(); err != nil {
+		return err
+	}
+	return s.fetchAndPublish()
+}
+
 func (s *LivePriceService) tick() error {
 	if len(s.cache.Keys()) == 0 || time.Since(s.lastSync) >= s.syncInterval {
 		if err := s.syncFromDB(); err != nil {
@@ -159,12 +176,23 @@ func (s *LivePriceService) syncFromDB() error {
 	}
 
 	dbSymbols := make(map[string]bool)
+	s.assetMetaMu.Lock()
 	for _, asset := range assets {
 		dbSymbols[asset.Symbol] = true
 		if _, exists := s.cache.Get(asset.Symbol); !exists {
 			s.cache.Set(asset.Symbol, 0)
 		}
+		if asset.PriceSource != nil && *asset.PriceSource != "" {
+			s.assetMeta[asset.Symbol] = assetMeta{
+				Name:        asset.Name,
+				PriceSource: *asset.PriceSource,
+			}
+		} else if _, exists := s.assetMeta[asset.Symbol]; !exists {
+			s.assetMeta[asset.Symbol] = assetMeta{Name: asset.Name}
+		}
 	}
+	s.assetMetaMu.Unlock()
+
 	for _, symbol := range exchangeSymbols {
 		dbSymbols[symbol] = true
 		if _, exists := s.cache.Get(symbol); !exists {
@@ -175,6 +203,9 @@ func (s *LivePriceService) syncFromDB() error {
 	for _, symbol := range s.cache.Keys() {
 		if !dbSymbols[symbol] {
 			s.cache.Delete(symbol)
+			s.assetMetaMu.Lock()
+			delete(s.assetMeta, symbol)
+			s.assetMetaMu.Unlock()
 		}
 	}
 
@@ -183,27 +214,99 @@ func (s *LivePriceService) syncFromDB() error {
 	return nil
 }
 
+func (s *LivePriceService) GetCustomSourceAssets() map[string]assetMeta {
+	s.assetMetaMu.RLock()
+	defer s.assetMetaMu.RUnlock()
+
+	result := make(map[string]assetMeta)
+	for symbol, meta := range s.assetMeta {
+		if meta.PriceSource != "" {
+			result[symbol] = meta
+		}
+	}
+	return result
+}
+
+type CustomSourceAsset struct {
+	Symbol      string  `json:"symbol"`
+	Name        string  `json:"name"`
+	PriceSource string  `json:"price_source"`
+	Price       float64 `json:"price"`
+}
+
+func (s *LivePriceService) GetCustomSourceAssetsWithPrices() []CustomSourceAsset {
+	s.assetMetaMu.RLock()
+	defer s.assetMetaMu.RUnlock()
+
+	var result []CustomSourceAsset
+	for symbol, meta := range s.assetMeta {
+		if meta.PriceSource != "" {
+			price, _ := s.cache.Get(symbol)
+			result = append(result, CustomSourceAsset{
+				Symbol:      symbol,
+				Name:        meta.Name,
+				PriceSource: meta.PriceSource,
+				Price:       price,
+			})
+		}
+	}
+	return result
+}
+
 func (s *LivePriceService) fetchAndPublish() error {
 	symbols := s.cache.Keys()
 	if len(symbols) == 0 {
 		return nil
 	}
 
-	pricePairs := make([]*prices.Price, len(symbols))
-	for i, symbol := range symbols {
-		pricePairs[i] = &prices.Price{
-			Asset: prices.Asset{Symbol: symbol},
+	s.assetMetaMu.RLock()
+	customSourceSymbols := make(map[string]assetMeta)
+	regularSymbols := make([]string, 0, len(symbols))
+	for _, symbol := range symbols {
+		if meta, ok := s.assetMeta[symbol]; ok && meta.PriceSource != "" {
+			customSourceSymbols[symbol] = meta
+		} else {
+			regularSymbols = append(regularSymbols, symbol)
+		}
+	}
+	s.assetMetaMu.RUnlock()
+
+	priceMap := make(map[string]float64)
+
+	if len(regularSymbols) > 0 {
+		pricePairs := make([]*prices.Price, len(regularSymbols))
+		for i, symbol := range regularSymbols {
+			pricePairs[i] = &prices.Price{
+				Asset: prices.Asset{Symbol: symbol},
+			}
+		}
+
+		if err := s.priceFetcher.FetchMany(pricePairs...); err != nil {
+			s.logger.Error("failed to fetch regular prices", "error", err)
+		}
+
+		for _, p := range pricePairs {
+			s.cache.Set(p.Asset.Symbol, p.Value)
+			priceMap[p.Asset.Symbol] = p.Value
 		}
 	}
 
-	if err := s.priceFetcher.FetchMany(pricePairs...); err != nil {
-		return errors.Wrap(err, "failed to fetch prices")
-	}
-
-	priceMap := make(map[string]float64)
-	for _, p := range pricePairs {
-		s.cache.Set(p.Asset.Symbol, p.Value)
-		priceMap[p.Asset.Symbol] = p.Value
+	if len(customSourceSymbols) > 0 {
+		fetcher := priceService.NewPriceService()
+		for symbol, meta := range customSourceSymbols {
+			price := &prices.Price{
+				Asset: prices.Asset{
+					Symbol: symbol,
+					Name:   meta.Name,
+				},
+			}
+			if err := fetcher.FetchBySource(meta.PriceSource, price); err != nil {
+				s.logger.Debug("failed to fetch custom source price", "symbol", symbol, "source", meta.PriceSource, "error", err)
+				continue
+			}
+			s.cache.Set(symbol, price.Value)
+			priceMap[symbol] = price.Value
+		}
 	}
 
 	data, err := json.Marshal(priceMap)
@@ -215,7 +318,7 @@ func (s *LivePriceService) fetchAndPublish() error {
 		return errors.Wrap(err, "failed to publish prices")
 	}
 
-	s.logger.Debug("published prices", "count", len(priceMap))
+	s.logger.Debug("published prices", "count", len(priceMap), "custom_sources", len(customSourceSymbols))
 	return nil
 }
 

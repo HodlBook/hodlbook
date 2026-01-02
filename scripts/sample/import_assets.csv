@@ -1,0 +1,9 @@
+symbol;name;amount;transaction_type;timestamp;notes
+BTC;Bitcoin;0.5;deposit;2024-01-15T10:30:00Z;Initial purchase from exchange
+ETH;Ethereum;2.0;deposit;2024-01-16T14:00:00Z;Transferred from Coinbase
+BTC;Bitcoin;0.1;withdrawal;2024-01-20T09:15:00Z;Sent to hardware wallet
+SOL;Solana;50.0;deposit;2024-01-25T11:00:00Z;Bought during dip
+DOGE;Dogecoin;1000;deposit;2024-02-01T16:30:00Z;Fun investment
+ETH;Ethereum;0.5;withdrawal;2024-02-10T08:45:00Z;Gas fees payment
+ADA;Cardano;500;deposit;2024-02-15T13:20:00Z;Staking rewards
+XRP;XRP;200;deposit;2024-02-20T10:00:00Z;Monthly DCA
