@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -111,7 +112,7 @@ func (g *PriceFetcher) fetchBySearch(price *prices.Price) error {
 	}
 
 	endpoint := fmt.Sprintf("%s/search/pools?query=%s&network=%s&page=1",
-		g.BaseURL, query, g.Network)
+		g.BaseURL, url.QueryEscape(query), g.Network)
 
 	resp, err := g.Client.Get(endpoint)
 	if err != nil {

@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strings"
 	"testing"
 
 	"hodlbook/pkg/types/prices"
@@ -13,14 +14,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func isIntegration() bool {
-	return os.Getenv("INTEGRATION") == "true"
-}
+var (
+	isIntegration = os.Getenv("INTEGRATION") == "true"
+)
 
 func TestPriceFetcher_Fetch(t *testing.T) {
 	fetcher := NewPriceFetcher()
 
-	if !isIntegration() {
+	if !isIntegration {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			resp := map[string]map[string]float64{
 				"bitcoin": {"usd": 87267.53},
@@ -34,9 +35,12 @@ func TestPriceFetcher_Fetch(t *testing.T) {
 
 	price := &prices.Price{Asset: prices.Asset{Name: "Bitcoin", Symbol: "BTC"}}
 	err := fetcher.Fetch(price)
+	if isIntegration && err != nil && strings.Contains(err.Error(), "429") {
+		t.Skip("skipping due to rate limiting (429)")
+	}
 	require.NoError(t, err)
 
-	if isIntegration() {
+	if isIntegration {
 		assert.Greater(t, price.Value, 0.0)
 		t.Logf("BTC/USD: %f", price.Value)
 	} else {
@@ -47,7 +51,7 @@ func TestPriceFetcher_Fetch(t *testing.T) {
 func TestPriceFetcher_FetchMany(t *testing.T) {
 	fetcher := NewPriceFetcher()
 
-	if !isIntegration() {
+	if !isIntegration {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			resp := map[string]map[string]float64{
 				"bitcoin":  {"usd": 87222.51},
@@ -66,9 +70,12 @@ func TestPriceFetcher_FetchMany(t *testing.T) {
 	}
 
 	err := fetcher.FetchMany(testPrices...)
+	if isIntegration && err != nil && strings.Contains(err.Error(), "429") {
+		t.Skip("skipping due to rate limiting (429)")
+	}
 	require.NoError(t, err)
 
-	if isIntegration() {
+	if isIntegration {
 		assert.Greater(t, testPrices[0].Value, 0.0)
 		assert.Greater(t, testPrices[1].Value, 0.0)
 		for _, p := range testPrices {
@@ -98,7 +105,7 @@ func TestPriceFetcher_FetchMany_StablecoinsReturnOne(t *testing.T) {
 }
 
 func TestPriceFetcher_Fetch_HTTPError(t *testing.T) {
-	if isIntegration() {
+	if isIntegration {
 		t.Skip("skipping HTTP error test in integration mode")
 	}
 
@@ -120,7 +127,7 @@ func TestPriceFetcher_Fetch_HTTPError(t *testing.T) {
 func TestPriceFetcher_FetchAll(t *testing.T) {
 	fetcher := NewPriceFetcher()
 
-	if !isIntegration() {
+	if !isIntegration {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			page := r.URL.Query().Get("page")
 			var resp []struct {
@@ -162,9 +169,12 @@ func TestPriceFetcher_FetchAll(t *testing.T) {
 	}
 
 	allPrices, err := fetcher.FetchAll()
+	if isIntegration && err != nil && strings.Contains(err.Error(), "429") {
+		t.Skip("skipping due to rate limiting (429)")
+	}
 	require.NoError(t, err)
 
-	if isIntegration() {
+	if isIntegration {
 		// defaultPages=5, 250/page = up to 1250 assets
 		assert.Greater(t, len(allPrices), 500)
 		assert.LessOrEqual(t, len(allPrices), 1250)

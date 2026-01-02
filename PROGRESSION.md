@@ -37,7 +37,6 @@ Self-hosted crypto portfolio management application.
     - import thru CSV/JSON
     - export to CSV/JSON/PDF
 - Add deposit/exchange tags/wallet names for better organization
-- Advanced filtering and sorting options in tables.
 - Export/import functionality.
     - import from transaction link for popular blockchains
 - browser wallets integration
@@ -49,9 +48,3 @@ Self-hosted crypto portfolio management application.
 - Automatic centralized exchange API integrations.
 - Tax reporting or compliance features.
 - Hosted service / SaaS.
-
-TODO
-- geckoterminal: prioritize fullname on search
-- deffillama correct linking
-- test link pasting
-- fix deep searched asset syncing
