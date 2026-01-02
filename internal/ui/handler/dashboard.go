@@ -250,20 +250,50 @@ func (h *DashboardHandler) Allocation(c *gin.Context) {
 }
 
 type HoldingsData struct {
-	Items []HoldingItem
-	Empty bool
+	Items    []HoldingItem
+	Empty    bool
+	SortBy   string
+	SortDir  string
+	Endpoint string
+	Target   string
 }
 
 type HoldingItem struct {
-	Symbol   string
-	Amount   string
-	Price    string
-	Value    string
-	Change   string
-	Positive bool
+	Symbol    string
+	Amount    string
+	Price     string
+	Value     string
+	ValueRaw  float64
+	Change    string
+	ChangeRaw float64
+	Positive  bool
 }
 
 func (h *DashboardHandler) Holdings(c *gin.Context) {
+	sortBy := c.DefaultQuery("sort", "value")
+	sortDir := c.DefaultQuery("dir", "desc")
+
+	items := h.buildHoldingsItems()
+	sortHoldingsItems(items, sortBy, sortDir)
+
+	if len(items) > 5 {
+		items = items[:5]
+	}
+
+	data := HoldingsData{
+		Items:    items,
+		Empty:    len(items) == 0,
+		SortBy:   sortBy,
+		SortDir:  sortDir,
+		Endpoint: "/partials/dashboard/holdings",
+		Target:   "#dashboard-holdings-container",
+	}
+
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.HTML(http.StatusOK, "holdings_table.html", data)
+}
+
+func (h *DashboardHandler) buildHoldingsItems() []HoldingItem {
 	holdings, _ := h.calculatePortfolio()
 	assets, _ := h.repo.GetAllAssets()
 	costBasis := h.calculateCostBasis(assets)
@@ -284,30 +314,38 @@ func (h *DashboardHandler) Holdings(c *gin.Context) {
 		}
 
 		items = append(items, HoldingItem{
-			Symbol:   symbol,
-			Amount:   formatAmount(amount),
-			Price:    formatPrice(price),
-			Value:    formatCurrency(value, "USD"),
-			Change:   formatPercent(pnlPct),
-			Positive: pnl >= 0,
+			Symbol:    symbol,
+			Amount:    formatAmount(amount),
+			Price:     formatPrice(price),
+			Value:     formatCurrency(value, "USD"),
+			ValueRaw:  value,
+			Change:    formatPercent(pnlPct),
+			ChangeRaw: pnlPct,
+			Positive:  pnl >= 0,
 		})
 	}
 
+	return items
+}
+
+func sortHoldingsItems(items []HoldingItem, sortBy, sortDir string) {
 	sort.Slice(items, func(i, j int) bool {
-		return items[i].Value > items[j].Value
+		var less bool
+		switch sortBy {
+		case "asset":
+			less = items[i].Symbol < items[j].Symbol
+		case "value":
+			less = items[i].ValueRaw < items[j].ValueRaw
+		case "change":
+			less = items[i].ChangeRaw < items[j].ChangeRaw
+		default:
+			less = items[i].ValueRaw < items[j].ValueRaw
+		}
+		if sortDir == "desc" {
+			return !less
+		}
+		return less
 	})
-
-	if len(items) > 5 {
-		items = items[:5]
-	}
-
-	data := HoldingsData{
-		Items: items,
-		Empty: len(items) == 0,
-	}
-
-	c.Header("Content-Type", "text/html; charset=utf-8")
-	c.HTML(http.StatusOK, "dashboard_holdings.html", data)
 }
 
 type RecentAssetsData struct {

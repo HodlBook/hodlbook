@@ -25,7 +25,7 @@
             <th class="checkbox-col">
                 <input type="checkbox" class="bulk-checkbox" @change="toggleAllAssets($event.target.checked)" :checked="allAssetsSelected">
             </th>
-            <th class="sortable{{if eq .SortBy "date"}} sorted {{.SortDir}}{{end}}"
+            <th class="date-col sortable{{if eq .SortBy "date"}} sorted {{.SortDir}}{{end}}"
                 hx-get="/partials/assets/table?sort=date&dir={{if and (eq .SortBy "date") (eq .SortDir "desc")}}asc{{else}}desc{{end}}"
                 hx-target="#assets-table-container"
                 hx-include=".filters-row select, .filters-row input">
@@ -63,7 +63,7 @@
             <td class="checkbox-col">
                 <input type="checkbox" class="row-checkbox" value="{{.ID}}" @change="toggleAsset({{.ID}}, $event.target.checked)" :checked="selectedAssets.includes({{.ID}})">
             </td>
-            <td>{{.Date}}</td>
+            <td class="date-col">{{.Date}}</td>
             <td>
                 <span class="badge badge-{{.TypeClass}}">{{.TransactionType}}</span>
             </td>

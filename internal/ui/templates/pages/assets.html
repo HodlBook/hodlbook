@@ -64,14 +64,35 @@
         </div>
     </section>
 
-    <section class="assets-list" x-data="assetSelection()">
+    <section class="assets-data" x-data="{ view: 'transactions' }">
         <div class="card">
-            <div class="card-body">
-                <div id="assets-table-container" hx-get="/partials/assets/table" hx-trigger="load" hx-swap="innerHTML" @htmx:after-swap="clearSelection()">
-                    <div class="skeleton-table">
-                        <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
-                        <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
-                        <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+            <div class="card-header">
+                <div class="card-header-tabs">
+                    <button class="btn" :class="view === 'holdings' ? 'btn-primary' : 'btn-secondary'" @click="view = 'holdings'">
+                        Holdings
+                    </button>
+                    <button class="btn" :class="view === 'transactions' ? 'btn-primary' : 'btn-secondary'" @click="view = 'transactions'">
+                        Transactions
+                    </button>
+                </div>
+            </div>
+            <div class="card-body" x-data="assetSelection()">
+                <div x-show="view === 'holdings'" x-cloak>
+                    <div id="assets-holdings-container" hx-get="/partials/assets/holdings" hx-trigger="load" hx-swap="innerHTML">
+                        <div class="skeleton-table">
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                        </div>
+                    </div>
+                </div>
+                <div x-show="view === 'transactions'">
+                    <div id="assets-table-container" hx-get="/partials/assets/table" hx-trigger="load" hx-swap="innerHTML" @htmx:after-swap="clearSelection()">
+                        <div class="skeleton-table">
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                            <div class="skeleton-row"><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div><div class="skeleton text"></div></div>
+                        </div>
                     </div>
                 </div>
             </div>

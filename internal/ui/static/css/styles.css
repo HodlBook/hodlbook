@@ -595,7 +595,7 @@ body {
     display: flex;
     flex-direction: column;
     gap: 8px;
-    max-height: var(--allocation-size);
+    max-height: calc(var(--chart-height) - 56px);
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--border-color) transparent;
@@ -719,6 +719,11 @@ body {
 .data-table.compact th,
 .data-table.compact td {
     padding: 8px 12px;
+}
+
+.data-table .date-col {
+    min-width: 130px;
+    white-space: nowrap;
 }
 
 .text-right {

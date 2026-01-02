@@ -115,6 +115,7 @@ func (h *WebHandler) Setup() error {
 
 	h.engine.GET("/assets", assets.Index)
 	h.engine.GET("/partials/assets/table", assets.Table)
+	h.engine.GET("/partials/assets/holdings", assets.Holdings)
 	h.engine.POST("/partials/assets/create", assets.Create)
 	h.engine.POST("/partials/assets/update/:id", assets.Update)
 	h.engine.DELETE("/partials/assets/delete/:id", assets.Delete)

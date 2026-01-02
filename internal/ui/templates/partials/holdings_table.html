@@ -1,0 +1,73 @@
+{{if .Empty}}
+<div class="empty-state">
+    <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/>
+        <path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/>
+        <path d="M18 12a2 2 0 0 0 0 4h4v-4h-4z"/>
+    </svg>
+    <h3>No Holdings</h3>
+    <p>Record transactions to track your holdings.</p>
+    <a href="/assets" class="btn btn-primary">Add Asset</a>
+</div>
+{{else}}
+<table class="data-table compact">
+    <thead>
+        <tr>
+            <th class="sortable {{if eq .SortBy "asset"}}sorted {{.SortDir}}{{end}}"
+                hx-get="{{.Endpoint}}?sort=asset&dir={{if and (eq .SortBy "asset") (eq .SortDir "asc")}}desc{{else}}asc{{end}}"
+                hx-target="{{.Target}}"
+                hx-swap="innerHTML">
+                Asset
+                <svg class="sort-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    {{if and (eq .SortBy "asset") (eq .SortDir "asc")}}
+                    <path d="M18 15l-6-6-6 6"/>
+                    {{else}}
+                    <path d="M6 9l6 6 6-6"/>
+                    {{end}}
+                </svg>
+            </th>
+            <th class="text-right">Amount</th>
+            <th class="text-right">Price</th>
+            <th class="text-right sortable {{if eq .SortBy "value"}}sorted {{.SortDir}}{{end}}"
+                hx-get="{{.Endpoint}}?sort=value&dir={{if and (eq .SortBy "value") (eq .SortDir "desc")}}asc{{else}}desc{{end}}"
+                hx-target="{{.Target}}"
+                hx-swap="innerHTML">
+                Value
+                <svg class="sort-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    {{if and (eq .SortBy "value") (eq .SortDir "asc")}}
+                    <path d="M18 15l-6-6-6 6"/>
+                    {{else}}
+                    <path d="M6 9l6 6 6-6"/>
+                    {{end}}
+                </svg>
+            </th>
+            <th class="text-right sortable {{if eq .SortBy "change"}}sorted {{.SortDir}}{{end}}"
+                hx-get="{{.Endpoint}}?sort=change&dir={{if and (eq .SortBy "change") (eq .SortDir "desc")}}asc{{else}}desc{{end}}"
+                hx-target="{{.Target}}"
+                hx-swap="innerHTML">
+                Change
+                <svg class="sort-chevron" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    {{if and (eq .SortBy "change") (eq .SortDir "asc")}}
+                    <path d="M18 15l-6-6-6 6"/>
+                    {{else}}
+                    <path d="M6 9l6 6 6-6"/>
+                    {{end}}
+                </svg>
+            </th>
+        </tr>
+    </thead>
+    <tbody>
+        {{range .Items}}
+        <tr>
+            <td>
+                <span class="asset-symbol">{{.Symbol}}</span>
+            </td>
+            <td class="text-right">{{.Amount}}</td>
+            <td class="text-right">{{.Price}}</td>
+            <td class="text-right">{{.Value}}</td>
+            <td class="text-right {{if .Positive}}positive{{else}}negative{{end}}">{{.Change}}</td>
+        </tr>
+        {{end}}
+    </tbody>
+</table>
+{{end}}

@@ -229,7 +229,7 @@ func (h *AssetsPageHandler) Table(c *gin.Context) {
 			TypeClass:       typeClass,
 			Amount:          formatAmount(asset.Amount),
 			AmountRaw:       asset.Amount,
-			Date:            asset.Timestamp.Format("Jan 2, 2006 15:04"),
+			Date:            asset.Timestamp.Format("2006-01-02 15:04"),
 			Timestamp:       asset.Timestamp.Format("2006-01-02T15:04"),
 			Notes:           asset.Notes,
 			USDValue:        usdValue,
@@ -545,4 +545,195 @@ func formatProviderName(source string) string {
 		return name
 	}
 	return source
+}
+
+type AssetsHoldingsData struct {
+	Items    []AssetsHoldingItem
+	Empty    bool
+	SortBy   string
+	SortDir  string
+	Endpoint string
+	Target   string
+}
+
+type AssetsHoldingItem struct {
+	Symbol    string
+	Amount    string
+	Price     string
+	Value     string
+	ValueRaw  float64
+	Change    string
+	ChangeRaw float64
+	Positive  bool
+}
+
+func (h *AssetsPageHandler) Holdings(c *gin.Context) {
+	sortBy := c.DefaultQuery("sort", "value")
+	sortDir := c.DefaultQuery("dir", "desc")
+
+	items := h.buildHoldingsItems()
+	sortAssetsHoldingsItems(items, sortBy, sortDir)
+
+	data := AssetsHoldingsData{
+		Items:    items,
+		Empty:    len(items) == 0,
+		SortBy:   sortBy,
+		SortDir:  sortDir,
+		Endpoint: "/partials/assets/holdings",
+		Target:   "#assets-holdings-container",
+	}
+
+	c.Header("Content-Type", "text/html; charset=utf-8")
+	c.HTML(http.StatusOK, "holdings_table.html", data)
+}
+
+func (h *AssetsPageHandler) buildHoldingsItems() []AssetsHoldingItem {
+	holdings := h.calculateHoldings()
+	assets, _ := h.repo.GetAllAssets()
+	costBasis := h.calculateCostBasis(assets)
+
+	var items []AssetsHoldingItem
+	for symbol, amount := range holdings {
+		if amount <= 0 {
+			continue
+		}
+		price, _ := h.priceCache.Get(symbol)
+		value := amount * price
+		cost := costBasis[symbol]
+		pnl := value - cost
+
+		var pnlPct float64
+		if cost > 0 {
+			pnlPct = (pnl / cost) * 100
+		}
+
+		items = append(items, AssetsHoldingItem{
+			Symbol:    symbol,
+			Amount:    formatAmount(amount),
+			Price:     formatPrice(price),
+			Value:     formatCurrency(value, "USD"),
+			ValueRaw:  value,
+			Change:    formatPercent(pnlPct),
+			ChangeRaw: pnlPct,
+			Positive:  pnl >= 0,
+		})
+	}
+
+	return items
+}
+
+func (h *AssetsPageHandler) calculateHoldings() map[string]float64 {
+	holdings := make(map[string]float64)
+
+	assets, _ := h.repo.GetAllAssets()
+	for _, asset := range assets {
+		switch asset.TransactionType {
+		case "deposit":
+			holdings[asset.Symbol] += asset.Amount
+		case "withdraw":
+			holdings[asset.Symbol] -= asset.Amount
+		}
+	}
+
+	exchanges, _ := h.repo.GetAllExchanges()
+	for _, ex := range exchanges {
+		holdings[ex.FromSymbol] -= ex.FromAmount
+		holdings[ex.ToSymbol] += ex.ToAmount
+	}
+
+	return holdings
+}
+
+type assetsCostBasisEvent struct {
+	timestamp time.Time
+	eventType string
+	asset     *models.Asset
+	exchange  *models.Exchange
+}
+
+func (h *AssetsPageHandler) calculateCostBasis(assets []models.Asset) map[string]float64 {
+	costBasis := make(map[string]float64)
+	runningHoldings := make(map[string]float64)
+
+	var events []assetsCostBasisEvent
+	for i := range assets {
+		events = append(events, assetsCostBasisEvent{
+			timestamp: assets[i].Timestamp,
+			eventType: "asset",
+			asset:     &assets[i],
+		})
+	}
+
+	exchanges, _ := h.repo.GetAllExchanges()
+	for i := range exchanges {
+		events = append(events, assetsCostBasisEvent{
+			timestamp: exchanges[i].Timestamp,
+			eventType: "exchange",
+			exchange:  &exchanges[i],
+		})
+	}
+
+	sort.Slice(events, func(i, j int) bool {
+		return events[i].timestamp.Before(events[j].timestamp)
+	})
+
+	for _, event := range events {
+		switch event.eventType {
+		case "asset":
+			asset := event.asset
+			switch asset.TransactionType {
+			case "deposit":
+				price := h.getPriceAtTime(asset.Symbol, asset.Timestamp)
+				costBasis[asset.Symbol] += asset.Amount * price
+				runningHoldings[asset.Symbol] += asset.Amount
+			case "withdraw":
+				if runningHoldings[asset.Symbol] > 0 {
+					avgCost := costBasis[asset.Symbol] / runningHoldings[asset.Symbol]
+					costBasis[asset.Symbol] -= asset.Amount * avgCost
+				}
+				runningHoldings[asset.Symbol] -= asset.Amount
+			}
+		case "exchange":
+			ex := event.exchange
+			if runningHoldings[ex.FromSymbol] > 0 {
+				avgCost := costBasis[ex.FromSymbol] / runningHoldings[ex.FromSymbol]
+				transferredCost := ex.FromAmount * avgCost
+				costBasis[ex.FromSymbol] -= transferredCost
+				costBasis[ex.ToSymbol] += transferredCost
+			}
+			runningHoldings[ex.FromSymbol] -= ex.FromAmount
+			runningHoldings[ex.ToSymbol] += ex.ToAmount
+		}
+	}
+
+	return costBasis
+}
+
+func (h *AssetsPageHandler) getPriceAtTime(symbol string, timestamp time.Time) float64 {
+	priceRecord, err := h.repo.GetPriceAtTime(symbol, "USD", timestamp)
+	if err == nil && priceRecord != nil {
+		return priceRecord.Price
+	}
+	price, _ := h.priceCache.Get(symbol)
+	return price
+}
+
+func sortAssetsHoldingsItems(items []AssetsHoldingItem, sortBy, sortDir string) {
+	sort.Slice(items, func(i, j int) bool {
+		var less bool
+		switch sortBy {
+		case "asset":
+			less = items[i].Symbol < items[j].Symbol
+		case "value":
+			less = items[i].ValueRaw < items[j].ValueRaw
+		case "change":
+			less = items[i].ChangeRaw < items[j].ChangeRaw
+		default:
+			less = items[i].ValueRaw < items[j].ValueRaw
+		}
+		if sortDir == "desc" {
+			return !less
+		}
+		return less
+	})
 }
