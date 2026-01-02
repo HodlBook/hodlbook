@@ -9,6 +9,7 @@ type Asset struct {
 	Amount          float64   `json:"amount"`
 	TransactionType string    `json:"transaction_type" gorm:"index"`
 	Notes           string    `json:"notes"`
+	PriceSource     *string   `json:"price_source,omitempty"`
 	Timestamp       time.Time `json:"timestamp"        gorm:"index"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`

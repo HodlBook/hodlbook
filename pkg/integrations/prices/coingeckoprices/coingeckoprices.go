@@ -82,7 +82,7 @@ func (c *PriceFetcher) FetchMany(pairs ...*prices.Price) error {
 }
 
 const (
-	defaultPages   = 10
+	defaultPages   = 5
 	defaultPerPage = 250
 )
 

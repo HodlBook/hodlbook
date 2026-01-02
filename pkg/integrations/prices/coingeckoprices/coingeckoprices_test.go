@@ -165,8 +165,10 @@ func TestPriceFetcher_FetchAll(t *testing.T) {
 	require.NoError(t, err)
 
 	if isIntegration() {
-		assert.Greater(t, len(allPrices), 250)
-		t.Logf("fetched %d prices", len(allPrices))
+		// defaultPages=5, 250/page = up to 1250 assets
+		assert.Greater(t, len(allPrices), 500)
+		assert.LessOrEqual(t, len(allPrices), 1250)
+		t.Logf("fetched %d prices (5 pages)", len(allPrices))
 		for _, p := range allPrices[:min(5, len(allPrices))] {
 			t.Logf("%s (%s): %f", p.Asset.Name, p.Asset.Symbol, p.Value)
 		}

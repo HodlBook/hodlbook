@@ -2,9 +2,11 @@ package handler
 
 import (
 	"errors"
+	"net/http"
 
 	"hodlbook/internal/controller"
 	"hodlbook/internal/repo"
+	"hodlbook/internal/service"
 	"hodlbook/pkg/types/cache"
 	"hodlbook/pkg/types/pubsub"
 
@@ -24,6 +26,7 @@ type Handler struct {
 	priceCHSet      bool
 	priceCache      cache.Cache[string, float64]
 	assetCreatedPub pubsub.Publisher
+	livePriceSvc    *service.LivePriceService
 }
 
 func (h *Handler) IsValid() error {
@@ -69,6 +72,12 @@ func WithPriceCache(pc cache.Cache[string, float64]) Option {
 func WithAssetCreatedPublisher(p pubsub.Publisher) Option {
 	return func(h *Handler) {
 		h.assetCreatedPub = p
+	}
+}
+
+func WithLivePriceService(svc *service.LivePriceService) Option {
+	return func(h *Handler) {
+		h.livePriceSvc = svc
 	}
 }
 
@@ -131,8 +140,38 @@ func (h *Handler) Setup() error {
 	}
 	prices.GET("", ctrl.ListPrices)
 	prices.GET("/currencies", ctrl.SearchCurrencies)
+	prices.GET("/deep-search", ctrl.DeepSearchCurrencies)
+	prices.GET("/deep-search/providers", ctrl.GetDeepSearchProviders)
+	if h.livePriceSvc != nil {
+		prices.GET("/deep-search/debug", h.debugDeepSearchAssets)
+		prices.POST("/sync", h.syncPrices)
+	}
 	prices.GET("/:symbol", ctrl.GetPrice)
 	prices.GET("/history/:symbol", ctrl.GetPriceHistory)
 
 	return nil
+}
+
+func (h *Handler) debugDeepSearchAssets(ctx *gin.Context) {
+	if h.livePriceSvc == nil {
+		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "live price service not available"})
+		return
+	}
+	assets := h.livePriceSvc.GetCustomSourceAssetsWithPrices()
+	ctx.JSON(http.StatusOK, gin.H{
+		"count":  len(assets),
+		"assets": assets,
+	})
+}
+
+func (h *Handler) syncPrices(ctx *gin.Context) {
+	if h.livePriceSvc == nil {
+		ctx.JSON(http.StatusServiceUnavailable, gin.H{"error": "live price service not available"})
+		return
+	}
+	if err := h.livePriceSvc.ForceSync(); err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"message": "prices synced"})
 }

@@ -52,6 +52,7 @@
             <th class="text-right">Value (USD)</th>
             <th class="text-right">Current Value</th>
             <th class="text-right">Gain/Loss</th>
+            <th>Provider</th>
             <th>Notes</th>
             <th></th>
         </tr>
@@ -77,6 +78,7 @@
                 <span class="gain-loss {{.GainLossClass}}">{{.GainLossUSD}} ({{.GainLossPercent}})</span>
                 {{else}}-{{end}}
             </td>
+            <td class="text-muted">{{.Provider}}</td>
             <td class="text-muted truncate">{{if .Notes}}{{.Notes}}{{else}}-{{end}}</td>
             <td class="text-right">
                 <div class="action-buttons">

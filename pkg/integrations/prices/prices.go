@@ -2,11 +2,15 @@ package prices
 
 import (
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
 	"hodlbook/pkg/integrations/prices/binanceprices"
 	"hodlbook/pkg/integrations/prices/coingeckoprices"
+	"hodlbook/pkg/integrations/prices/cryptocompareprices"
+	"hodlbook/pkg/integrations/prices/defillamaprices"
+	"hodlbook/pkg/integrations/prices/geckoterminalprices"
 	"hodlbook/pkg/integrations/prices/krakenprices"
 	"hodlbook/pkg/types/prices"
 )
@@ -144,6 +148,9 @@ func (p *PriceService) FetchAll() ([]prices.Price, error) {
 	krakenPrices, krakenErr := p.kraken.FetchAll()
 	if krakenErr == nil {
 		for _, price := range krakenPrices {
+			if price.Value == 0 {
+				continue
+			}
 			symbol := price.Asset.Symbol
 			merged[symbol] = price
 		}
@@ -152,6 +159,9 @@ func (p *PriceService) FetchAll() ([]prices.Price, error) {
 	binPrices, binErr := p.binance.FetchAll()
 	if binErr == nil {
 		for _, price := range binPrices {
+			if price.Value == 0 {
+				continue
+			}
 			symbol := price.Asset.Symbol
 			if _, ok := merged[symbol]; !ok {
 				merged[symbol] = price
@@ -162,6 +172,9 @@ func (p *PriceService) FetchAll() ([]prices.Price, error) {
 	cgPrices, cgErr := p.coingecko.FetchAll()
 	if cgErr == nil {
 		for _, price := range cgPrices {
+			if price.Value == 0 {
+				continue
+			}
 			symbol := price.Asset.Symbol
 			if existing, ok := merged[symbol]; ok {
 				existing.Asset.Name = price.Asset.Name
@@ -183,4 +196,125 @@ func (p *PriceService) FetchAll() ([]prices.Price, error) {
 
 	p.cache.Set(pricesList)
 	return pricesList, nil
+}
+
+var deepSearchProviders = map[string]func() prices.PriceFetcher{
+	prices.SourceKraken:        func() prices.PriceFetcher { return krakenprices.NewPriceFetcher() },
+	prices.SourceBinance:       func() prices.PriceFetcher { return binanceprices.NewPriceFetcher() },
+	prices.SourceCoinGecko:     func() prices.PriceFetcher { return coingeckoprices.NewPriceFetcher() },
+	prices.SourceDefiLlama:     func() prices.PriceFetcher { return defillamaprices.NewPriceFetcher() },
+	prices.SourceGeckoTerminal: func() prices.PriceFetcher { return geckoterminalprices.NewPriceFetcher() },
+}
+
+func AvailableDeepSearchProviders() []string {
+	return []string{
+		prices.SourceDefiLlama,
+		prices.SourceGeckoTerminal,
+		prices.SourceKraken,
+		prices.SourceBinance,
+		prices.SourceCoinGecko,
+	}
+}
+
+type DeepSearchResult struct {
+	Symbol      string `json:"symbol"`
+	Name        string `json:"name"`
+	Price       float64 `json:"price"`
+	Source      string `json:"source"`
+	PoolAddress string `json:"pool_address,omitempty"`
+	Network     string `json:"network,omitempty"`
+}
+
+func (p *PriceService) DeepSearch(query string, name string, network string, providers []string) ([]DeepSearchResult, error) {
+	if len(providers) == 0 {
+		providers = AvailableDeepSearchProviders()
+	}
+
+	query = strings.TrimSpace(query)
+	if query == "" {
+		return nil, fmt.Errorf("query cannot be empty")
+	}
+
+	name = strings.TrimSpace(name)
+	if name == "" {
+		name = strings.ToLower(query)
+	}
+
+	network = strings.TrimSpace(network)
+
+	var results []DeepSearchResult
+
+	for _, providerName := range providers {
+		var fetcher prices.PriceFetcher
+
+		if network != "" && isPoolAddress(query) {
+			switch providerName {
+			case prices.SourceGeckoTerminal:
+				fetcher = geckoterminalprices.NewPriceFetcherForNetwork(network)
+			case prices.SourceDefiLlama:
+				fetcher = defillamaprices.NewPriceFetcherForToken(network, query)
+			default:
+				factory, ok := deepSearchProviders[providerName]
+				if !ok {
+					continue
+				}
+				fetcher = factory()
+			}
+		} else {
+			factory, ok := deepSearchProviders[providerName]
+			if !ok {
+				continue
+			}
+			fetcher = factory()
+		}
+
+		price := &prices.Price{
+			Asset: prices.Asset{
+				Symbol: strings.ToUpper(query),
+				Name:   name,
+			},
+		}
+
+		if err := fetcher.Fetch(price); err != nil {
+			continue
+		}
+
+		if price.Value == 0 {
+			continue
+		}
+
+		results = append(results, DeepSearchResult{
+			Symbol:      strings.ToUpper(price.Asset.Symbol),
+			Name:        price.Asset.Name,
+			Price:       price.Value,
+			Source:      providerName,
+			PoolAddress: price.PoolAddress,
+			Network:     price.Network,
+		})
+	}
+
+	return results, nil
+}
+
+func isPoolAddress(s string) bool {
+	return strings.HasPrefix(strings.ToLower(s), "0x") && len(s) == 42
+}
+
+func (p *PriceService) FetchBySource(source string, price *prices.Price) error {
+	switch source {
+	case prices.SourceCryptoCompare:
+		return cryptocompareprices.NewPriceFetcher().Fetch(price)
+	case prices.SourceDefiLlama:
+		return defillamaprices.NewPriceFetcher().Fetch(price)
+	case prices.SourceGeckoTerminal:
+		return geckoterminalprices.NewPriceFetcher().Fetch(price)
+	case prices.SourceCoinGecko:
+		return p.coingecko.Fetch(price)
+	case prices.SourceBinance:
+		return p.binance.Fetch(price)
+	case prices.SourceKraken:
+		return p.kraken.Fetch(price)
+	default:
+		return p.Fetch(price)
+	}
 }

@@ -1,7 +1,14 @@
 {{define "content"}}
 <div class="assets-page">
     <section class="page-header">
-        <div class="page-header-actions">
+        <div class="page-header-actions" x-data="{ syncing: false }">
+            <button class="btn btn-secondary" @click="syncPrices()" :disabled="syncing">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" :class="{ 'spin': syncing }">
+                    <path d="M21 12a9 9 0 11-9-9"/>
+                    <path d="M21 3v6h-6"/>
+                </svg>
+                <span x-text="syncing ? 'Syncing...' : 'Sync Prices'"></span>
+            </button>
             <button class="btn btn-primary" @click="$dispatch('open-add-asset')">
                 <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <path d="M12 5v14M5 12h14"/>
@@ -71,7 +78,7 @@
         </div>
     </section>
 
-    <div x-data="assetModal()" @open-add-asset.window="openAdd()" @open-edit-asset.window="openEdit($event.detail)" @close-modal.window="open = false">
+    <div x-data="assetModal()" @open-add-asset.window="openAdd()" @open-edit-asset.window="openEdit($event.detail)" @close-modal.window="open = false" @crypto-selected="symbol = $event.detail.symbol; name = $event.detail.name; priceSource = $event.detail.source">
         <div x-show="open" x-cloak class="modal-overlay" @click.self="open = false" @keydown.escape.window="open = false">
             <div class="modal" x-transition>
                 <div class="modal-header">
@@ -102,7 +109,8 @@
                                     @keydown.enter.prevent="selectHighlighted()"
                                     @keydown.escape="showDropdown = false"
                                     autocomplete="off">
-                                <div class="crypto-dropdown" x-show="showDropdown && filteredCryptos.length > 0" x-cloak>
+                                <input type="hidden" name="price_source" x-model="priceSource">
+                                <div class="crypto-dropdown" x-show="showDropdown" x-cloak>
                                     <template x-for="(crypto, index) in filteredCryptos" :key="crypto.symbol">
                                         <div class="crypto-option"
                                             :class="{ 'highlighted': index === highlightedIndex }"
@@ -112,6 +120,9 @@
                                             <span class="crypto-name" x-text="crypto.name"></span>
                                         </div>
                                     </template>
+                                    <div class="crypto-option crypto-deep-search" @click="$dispatch('open-deep-search', { query: search })">
+                                        <span class="deep-search-text">Can't find asset? Search deeper...</span>
+                                    </div>
                                 </div>
                             </div>
                             <small class="form-hint">Select from supported cryptocurrencies</small>
@@ -133,7 +144,8 @@
                         </div>
                         <div class="form-group">
                             <label for="asset-notes">Notes</label>
-                            <textarea id="asset-notes" name="notes" class="form-control" rows="2" x-model="notes" placeholder="Optional notes..."></textarea>
+                            <textarea id="asset-notes" name="notes" class="form-control" rows="2" x-model="notes" placeholder="Optional notes..."
+                                @keydown.ctrl.enter.prevent="submitForm($el.closest('form'))"></textarea>
                         </div>
                     </div>
                     <div class="modal-footer">
@@ -180,11 +192,153 @@
             </div>
         </div>
     </div>
+
+    <div x-data="deepSearchModal()" @open-deep-search.window="openSearch($event.detail)" @keydown.escape.window="open = false">
+        <div x-show="open" x-cloak class="modal-overlay" @click.self="open = false">
+            <div class="modal" x-transition style="max-width: 620px;">
+                <div class="modal-header">
+                    <h2 class="modal-title">Deep Search</h2>
+                    <button @click="open = false" class="modal-close">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="deep-search-tabs" style="display: flex; gap: 8px; margin-bottom: 16px;">
+                        <button type="button" class="tab-btn" :class="{ 'active': activeTab === 'search' }" @click="activeTab = 'search'"
+                            :style="activeTab === 'search' ? 'flex:1; padding:10px 16px; background:#f7931a; border:1px solid #f7931a; color:#0d1117; cursor:pointer; border-radius:6px; font-weight:500;' : 'flex:1; padding:10px 16px; background:transparent; border:1px solid #f7931a; color:#f7931a; cursor:pointer; border-radius:6px; font-weight:500;'">Search</button>
+                        <button type="button" class="tab-btn" :class="{ 'active': activeTab === 'link' }" @click="activeTab = 'link'"
+                            :style="activeTab === 'link' ? 'flex:1; padding:10px 16px; background:#f7931a; border:1px solid #f7931a; color:#0d1117; cursor:pointer; border-radius:6px; font-weight:500;' : 'flex:1; padding:10px 16px; background:transparent; border:1px solid #f7931a; color:#f7931a; cursor:pointer; border-radius:6px; font-weight:500;'">Paste Link</button>
+                    </div>
+
+                    <div x-show="activeTab === 'search'">
+                        <div class="form-group">
+                            <input type="text" class="form-control" x-model="query" placeholder="Symbol (e.g., HYPE)"
+                                @keydown.enter.prevent="search()">
+                        </div>
+                        <div class="form-group">
+                            <input type="text" class="form-control" x-model="nameQuery" placeholder="Name (e.g., hyperliquid) - optional"
+                                @keydown.enter.prevent="search()">
+                        </div>
+                        <div class="form-group">
+                            <button type="button" class="btn btn-primary" @click="search()" :disabled="loading" style="width: 100%;">
+                                <span x-show="!loading">Search</span>
+                                <span x-show="loading">Searching...</span>
+                            </button>
+                        </div>
+                        <div class="form-group">
+                            <div class="provider-toggle" @click="showProviders = !showProviders">
+                                <span>Providers</span>
+                                <svg :class="{ 'rotated': showProviders }" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M6 9l6 6 6-6"/>
+                                </svg>
+                            </div>
+                            <div x-show="showProviders" x-collapse class="provider-list">
+                                <template x-for="provider in availableProviders" :key="provider">
+                                    <label class="provider-checkbox">
+                                        <input type="checkbox" :value="provider" x-model="selectedProviders">
+                                        <span x-text="formatProviderName(provider)"></span>
+                                    </label>
+                                </template>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div x-show="activeTab === 'link'">
+                        <div class="form-group">
+                            <input type="text" class="form-control" x-model="linkInput" placeholder="e.g., https://www.coingecko.com/en/coins/hyperliquid"
+                                @input="parseLink()" @keydown.enter.prevent="fetchFromLink()">
+                        </div>
+                        <div class="form-group" x-show="parsedLink.provider">
+                            <div class="parsed-link-info">
+                                <span class="parsed-provider" x-text="formatProviderName(parsedLink.provider)"></span>
+                                <span class="parsed-asset" x-text="parsedLink.asset"></span>
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <button type="button" class="btn btn-primary" @click="fetchFromLink()" :disabled="loading || !parsedLink.provider" style="width: 100%;">
+                                <span x-show="!loading">Fetch Price</span>
+                                <span x-show="loading">Fetching...</span>
+                            </button>
+                        </div>
+                        <div class="form-group">
+                            <p class="supported-links-label">Supported link formats:</p>
+                            <ul class="supported-links">
+                                <li>coingecko.com/en/coins/<em>asset-name</em></li>
+                                <li>defillama.com/protocol/<em>asset-name</em></li>
+                                <li>geckoterminal.com/.../pools/<em>address</em></li>
+                                <li>binance.com/en/price/<em>symbol</em></li>
+                                <li>kraken.com/prices/<em>symbol</em></li>
+                            </ul>
+                        </div>
+                        <div class="link-error" x-show="linkError" x-text="linkError"></div>
+                    </div>
+
+                    <div class="deep-search-results" x-show="results.length > 0 || searched">
+                        <template x-if="results.length === 0 && searched && !loading">
+                            <p class="no-results">No results found. Try a different search term.</p>
+                        </template>
+                        <div x-show="results.length > 0" style="display:flex; flex-direction:column; gap:8px;">
+                            <div style="display:flex; padding:8px 0; border-bottom:1px solid #30363d; font-size:12px; color:#8b949e;">
+                                <span style="flex:0 0 60px;">Symbol</span>
+                                <span style="flex:1;">Name</span>
+                                <span style="flex:0 0 90px;">Price</span>
+                                <span style="flex:0 0 110px;">Provider</span>
+                                <span style="flex:0 0 180px;"></span>
+                            </div>
+                            <template x-for="result in results" :key="result.symbol + result.source">
+                                <div style="display:flex; align-items:center; padding:8px 0; border-bottom:1px solid #30363d;">
+                                    <span style="flex:0 0 60px; font-weight:500;" x-text="result.symbol"></span>
+                                    <span style="flex:1; color:#8b949e;" x-text="result.name"></span>
+                                    <span style="flex:0 0 90px;" x-text="'$' + result.price.toFixed(result.price < 1 ? 6 : 2)"></span>
+                                    <span style="flex:0 0 110px; color:#8b949e;" x-text="formatProviderName(result.source)"></span>
+                                    <span style="flex:0 0 180px; display:flex; gap:8px; justify-content:flex-end;">
+                                        <a :href="getProviderLink(result)" target="_blank" rel="noopener noreferrer" @click.stop
+                                            style="display:inline-block; padding:6px 12px; font-size:12px; background:#f7931a; color:#0d1117; border:none; font-weight:500; border-radius:6px; cursor:pointer; text-decoration:none;">Check Source</a>
+                                        <button type="button" @click="selectResult(result)"
+                                            style="padding:6px 12px; font-size:12px; background:#f7931a; color:#0d1117; border:none; font-weight:500; border-radius:6px; cursor:pointer;">Select</button>
+                                    </span>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" @click="open = false" class="btn btn-secondary">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
 let cachedCryptos = null;
 let selectedAssetsStore = [];
+
+async function syncPrices() {
+    const btn = event.currentTarget;
+    const svg = btn.querySelector('svg');
+    btn.disabled = true;
+    svg.classList.add('spin');
+    try {
+        const response = await fetch('/api/prices/sync', { method: 'POST' });
+        if (response.ok) {
+            htmx.trigger('#assets-table-container', 'htmx:load');
+            window.dispatchEvent(new CustomEvent('show-toast', {
+                detail: { message: 'Prices synced successfully', type: 'success' }
+            }));
+        } else {
+            window.dispatchEvent(new CustomEvent('show-toast', {
+                detail: { message: 'Failed to sync prices', type: 'error' }
+            }));
+        }
+    } catch (e) {
+        console.error('Sync failed:', e);
+        window.dispatchEvent(new CustomEvent('show-toast', {
+            detail: { message: 'Failed to sync prices', type: 'error' }
+        }));
+    } finally {
+        btn.disabled = false;
+        svg.classList.remove('spin');
+    }
+}
 
 function assetSelection() {
     return {
@@ -265,8 +419,12 @@ function cryptoSearch() {
         filteredCryptos: [],
         showDropdown: false,
         highlightedIndex: 0,
+        priceSource: '',
         async init() {
             this.cryptos = await fetchCryptos();
+            window.addEventListener('deep-search-selected', (e) => {
+                this.selectCrypto({ symbol: e.detail.symbol, name: e.detail.name }, e.detail.source);
+            });
         },
         onFocus() {
             this.filterCryptos();
@@ -275,6 +433,7 @@ function cryptoSearch() {
         },
         onInput(value) {
             this.search = value.toUpperCase();
+            this.priceSource = '';
             this.filterCryptos();
             this.highlightedIndex = 0;
         },
@@ -288,11 +447,11 @@ function cryptoSearch() {
                 .filter(c => c.symbol.toLowerCase().includes(term) || c.name.toLowerCase().includes(term))
                 .slice(0, 10);
         },
-        selectCrypto(crypto) {
+        selectCrypto(crypto, source = '') {
             this.search = crypto.symbol;
-            this.$data.symbol = crypto.symbol;
-            this.$data.name = crypto.name;
+            this.priceSource = source;
             this.showDropdown = false;
+            this.$dispatch('crypto-selected', { symbol: crypto.symbol, name: crypto.name, source: source });
             this.$nextTick(() => {
                 document.getElementById('asset-amount').focus();
             });
@@ -326,6 +485,7 @@ function assetModal() {
         amount: '',
         timestamp: '',
         notes: '',
+        priceSource: '',
         openAdd() {
             this.isEdit = false;
             this.assetEntryId = null;
@@ -335,6 +495,7 @@ function assetModal() {
             this.amount = '';
             this.timestamp = new Date().toISOString().slice(0, 16);
             this.notes = '';
+            this.priceSource = '';
             this.open = true;
         },
         openEdit(detail) {
@@ -346,6 +507,7 @@ function assetModal() {
             this.amount = detail.amount;
             this.timestamp = detail.timestamp;
             this.notes = detail.notes || '';
+            this.priceSource = detail.priceSource || '';
             this.open = true;
         },
         submitForm(form) {
@@ -353,6 +515,8 @@ function assetModal() {
                 ? '/partials/assets/update/' + this.assetEntryId
                 : '/partials/assets/create';
             const self = this;
+            const priceSourceInput = form.querySelector('input[name="price_source"]');
+            const priceSource = priceSourceInput ? priceSourceInput.value : '';
             htmx.ajax('POST', url, {
                 target: '#assets-table-container',
                 swap: 'innerHTML',
@@ -362,7 +526,8 @@ function assetModal() {
                     name: this.name,
                     amount: this.amount,
                     timestamp: this.timestamp,
-                    notes: this.notes
+                    notes: this.notes,
+                    price_source: priceSource
                 }
             }).then(() => {
                 self.open = false;
@@ -392,6 +557,170 @@ function deleteAssetModal() {
                     detail: { message: 'Asset entry deleted', type: 'success' }
                 }));
             });
+        }
+    }
+}
+
+function deepSearchModal() {
+    return {
+        open: false,
+        activeTab: 'search',
+        query: '',
+        nameQuery: '',
+        loading: false,
+        searched: false,
+        results: [],
+        availableProviders: [],
+        selectedProviders: [],
+        showProviders: false,
+        linkInput: '',
+        parsedLink: { provider: '', asset: '', network: '' },
+        linkError: '',
+        async openSearch(detail) {
+            this.query = detail?.query || '';
+            this.nameQuery = '';
+            this.results = [];
+            this.searched = false;
+            this.loading = false;
+            this.activeTab = 'search';
+            this.linkInput = '';
+            this.parsedLink = { provider: '', asset: '', network: '' };
+            this.linkError = '';
+            this.open = true;
+            if (this.availableProviders.length === 0) {
+                await this.fetchProviders();
+            }
+        },
+        async fetchProviders() {
+            try {
+                const response = await fetch('/api/prices/deep-search/providers');
+                this.availableProviders = await response.json();
+                this.selectedProviders = [...this.availableProviders];
+            } catch (e) {
+                console.error('Failed to fetch providers:', e);
+            }
+        },
+        parseLink() {
+            this.linkError = '';
+            this.parsedLink = { provider: '', asset: '', network: '' };
+            const url = this.linkInput.trim();
+            if (!url) return;
+
+            try {
+                const patterns = [
+                    { regex: /coingecko\.com\/(?:en\/)?coins\/([^/?#]+)/i, provider: 'coingecko', type: 'name' },
+                    { regex: /defillama\.com\/protocol\/([^/?#]+)/i, provider: 'defillama', type: 'name' },
+                    { regex: /geckoterminal\.com\/([^/]+)\/pools\/([^/?#]+)/i, provider: 'geckoterminal', type: 'address' },
+                    { regex: /binance\.com\/(?:en\/)?price\/([^/?#]+)/i, provider: 'binance', type: 'symbol' },
+                    { regex: /kraken\.com\/prices\/([^/?#]+)/i, provider: 'kraken', type: 'symbol' },
+                ];
+
+                for (const pattern of patterns) {
+                    const match = url.match(pattern.regex);
+                    if (match) {
+                        if (pattern.provider === 'geckoterminal') {
+                            this.parsedLink = { provider: pattern.provider, asset: match[2], network: match[1] };
+                        } else {
+                            this.parsedLink = { provider: pattern.provider, asset: match[1], network: '' };
+                        }
+                        return;
+                    }
+                }
+            } catch (e) {
+                console.error('Failed to parse link:', e);
+            }
+        },
+        async fetchFromLink() {
+            if (!this.parsedLink.provider || !this.parsedLink.asset) return;
+            this.loading = true;
+            this.searched = true;
+            this.linkError = '';
+            try {
+                const params = new URLSearchParams({
+                    q: this.parsedLink.asset.toUpperCase(),
+                    name: this.parsedLink.asset,
+                    providers: this.parsedLink.provider
+                });
+                if (this.parsedLink.network) {
+                    params.append('network', this.parsedLink.network);
+                }
+                const response = await fetch('/api/prices/deep-search?' + params.toString());
+                this.results = await response.json();
+                if (this.results.length === 0) {
+                    this.linkError = 'Could not fetch price for this asset';
+                }
+            } catch (e) {
+                console.error('Fetch from link failed:', e);
+                this.results = [];
+                this.linkError = 'Failed to fetch price';
+            } finally {
+                this.loading = false;
+            }
+        },
+        async search() {
+            if (!this.query.trim()) return;
+            this.loading = true;
+            this.searched = true;
+            try {
+                const params = new URLSearchParams({ q: this.query });
+                if (this.nameQuery.trim()) {
+                    params.append('name', this.nameQuery.trim());
+                }
+                if (this.selectedProviders.length > 0 && this.selectedProviders.length < this.availableProviders.length) {
+                    params.append('providers', this.selectedProviders.join(','));
+                }
+                const response = await fetch('/api/prices/deep-search?' + params.toString());
+                this.results = await response.json();
+            } catch (e) {
+                console.error('Deep search failed:', e);
+                this.results = [];
+            } finally {
+                this.loading = false;
+            }
+        },
+        formatProviderName(provider) {
+            const names = {
+                'kraken': 'Kraken',
+                'binance': 'Binance',
+                'coingecko': 'CoinGecko',
+                'defillama': 'DefiLlama',
+                'geckoterminal': 'GeckoTerminal'
+            };
+            return names[provider] || provider;
+        },
+        getProviderLink(result) {
+            const symbol = result.symbol.toLowerCase();
+            const name = (result.name || symbol).toLowerCase().replace(/\s+/g, '-');
+            switch (result.source) {
+                case 'kraken':
+                    return `https://www.kraken.com/prices/${symbol}`;
+                case 'binance':
+                    return `https://www.binance.com/en/price/${symbol}`;
+                case 'coingecko':
+                    return `https://www.coingecko.com/en/coins/${name}`;
+                case 'defillama':
+                    if (result.pool_address && result.network) {
+                        return `https://defillama.com/${result.network}/token/${result.pool_address}`;
+                    }
+                    return `https://defillama.com/protocol/${name}`;
+                case 'geckoterminal':
+                    if (result.pool_address && result.network) {
+                        return `https://www.geckoterminal.com/${result.network}/pools/${result.pool_address}`;
+                    }
+                    return `https://www.geckoterminal.com/search?query=${symbol}`;
+                default:
+                    return '#';
+            }
+        },
+        selectResult(result) {
+            window.dispatchEvent(new CustomEvent('deep-search-selected', {
+                detail: {
+                    symbol: result.symbol,
+                    name: result.name,
+                    source: result.source
+                }
+            }));
+            this.open = false;
         }
     }
 }

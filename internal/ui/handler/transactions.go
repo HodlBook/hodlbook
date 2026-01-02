@@ -10,6 +10,7 @@ import (
 
 	"hodlbook/internal/models"
 	"hodlbook/internal/repo"
+	pricesIntegration "hodlbook/pkg/integrations/prices"
 	"hodlbook/pkg/types/cache"
 	"hodlbook/pkg/types/prices"
 
@@ -80,6 +81,7 @@ type AssetRow struct {
 	GainLossUSD     string
 	GainLossPercent string
 	GainLossClass   string
+	Provider        string
 }
 
 func (h *AssetsPageHandler) Table(c *gin.Context) {
@@ -150,9 +152,17 @@ func (h *AssetsPageHandler) Table(c *gin.Context) {
 	}
 	historicPrices, _ := h.repo.GetPricesAtTimes(queries, "USD")
 
-	// Fetch current prices for all symbols in paginated assets
+	// Fetch current prices from cache (includes deep searched assets)
 	currentPrices := make(map[string]float64)
-	if h.priceFetcher != nil {
+	if h.priceCache != nil {
+		for _, symbol := range h.priceCache.Keys() {
+			if price, ok := h.priceCache.Get(symbol); ok && price > 0 {
+				currentPrices[symbol] = price
+			}
+		}
+	}
+	// Fallback to priceFetcher for any missing symbols
+	if h.priceFetcher != nil && len(currentPrices) == 0 {
 		allPrices, err := h.priceFetcher.FetchAll()
 		if err == nil {
 			for _, p := range allPrices {
@@ -206,6 +216,11 @@ func (h *AssetsPageHandler) Table(c *gin.Context) {
 			}
 		}
 
+		provider := "auto"
+		if asset.PriceSource != nil && *asset.PriceSource != "" {
+			provider = formatProviderName(*asset.PriceSource)
+		}
+
 		rows = append(rows, AssetRow{
 			ID:              asset.ID,
 			Symbol:          asset.Symbol,
@@ -224,6 +239,7 @@ func (h *AssetsPageHandler) Table(c *gin.Context) {
 			GainLossUSD:     gainLossUSD,
 			GainLossPercent: gainLossPercent,
 			GainLossClass:   gainLossClass,
+			Provider:        provider,
 		})
 	}
 
@@ -271,6 +287,7 @@ type CreateAssetRequest struct {
 	Amount          float64 `form:"amount" binding:"required"`
 	Timestamp       string  `form:"timestamp" binding:"required"`
 	Notes           string  `form:"notes"`
+	PriceSource     string  `form:"price_source"`
 }
 
 func (h *AssetsPageHandler) Create(c *gin.Context) {
@@ -299,6 +316,11 @@ func (h *AssetsPageHandler) Create(c *gin.Context) {
 		timestamp = time.Now()
 	}
 
+	var priceSource *string
+	if req.PriceSource != "" {
+		priceSource = &req.PriceSource
+	}
+
 	asset := &models.Asset{
 		Symbol:          req.Symbol,
 		Name:            req.Name,
@@ -306,6 +328,7 @@ func (h *AssetsPageHandler) Create(c *gin.Context) {
 		Amount:          req.Amount,
 		Timestamp:       timestamp,
 		Notes:           req.Notes,
+		PriceSource:     priceSource,
 	}
 
 	if err := h.repo.CreateAsset(asset); err != nil {
@@ -313,6 +336,8 @@ func (h *AssetsPageHandler) Create(c *gin.Context) {
 		h.Table(c)
 		return
 	}
+
+	h.ensurePriceAtTimestamp(asset.Symbol, asset.Name, asset.Timestamp, asset.PriceSource)
 
 	h.Table(c)
 }
@@ -364,6 +389,11 @@ func (h *AssetsPageHandler) Update(c *gin.Context) {
 	asset.Amount = req.Amount
 	asset.Timestamp = timestamp
 	asset.Notes = req.Notes
+	if req.PriceSource != "" {
+		asset.PriceSource = &req.PriceSource
+	} else {
+		asset.PriceSource = nil
+	}
 
 	if err := h.repo.UpdateAsset(asset); err != nil {
 		c.Header("HX-Trigger", `{"show-toast": {"message": "Failed to update asset entry", "type": "error"}}`)
@@ -371,26 +401,41 @@ func (h *AssetsPageHandler) Update(c *gin.Context) {
 		return
 	}
 
-	h.ensurePriceAtTimestamp(asset.Symbol, asset.Name, asset.Timestamp)
+	h.ensurePriceAtTimestamp(asset.Symbol, asset.Name, asset.Timestamp, asset.PriceSource)
 
 	h.Table(c)
 }
 
-func (h *AssetsPageHandler) ensurePriceAtTimestamp(symbol, name string, timestamp time.Time) {
+func (h *AssetsPageHandler) ensurePriceAtTimestamp(symbol, name string, timestamp time.Time, priceSource *string) {
 	if h.priceFetcher == nil {
 		return
 	}
 
-	allPrices, err := h.priceFetcher.FetchAll()
-	if err != nil {
-		return
+	var priceValue float64
+
+	if priceSource != nil && *priceSource != "" {
+		price := &prices.Price{
+			Asset: prices.Asset{
+				Symbol: symbol,
+				Name:   name,
+			},
+		}
+		fetcher := pricesIntegration.NewPriceService()
+		if err := fetcher.FetchBySource(*priceSource, price); err == nil && price.Value > 0 {
+			priceValue = price.Value
+		}
 	}
 
-	var priceValue float64
-	for _, p := range allPrices {
-		if p.Asset.Symbol == symbol {
-			priceValue = p.Value
-			break
+	if priceValue == 0 {
+		allPrices, err := h.priceFetcher.FetchAll()
+		if err != nil {
+			return
+		}
+		for _, p := range allPrices {
+			if p.Asset.Symbol == symbol {
+				priceValue = p.Value
+				break
+			}
 		}
 	}
 
@@ -486,4 +531,18 @@ func (h *AssetsPageHandler) GetSupportedCryptos(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, cryptos)
+}
+
+func formatProviderName(source string) string {
+	names := map[string]string{
+		"kraken":        "Kraken",
+		"binance":       "Binance",
+		"coingecko":     "CoinGecko",
+		"defillama":     "DefiLlama",
+		"geckoterminal": "GeckoTerminal",
+	}
+	if name, ok := names[source]; ok {
+		return name
+	}
+	return source
 }

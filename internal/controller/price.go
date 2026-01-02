@@ -121,3 +121,48 @@ func (c *Controller) SearchCurrencies(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, results)
 }
+
+// DeepSearchCurrencies godoc
+// @Summary Deep search for currencies across multiple providers
+// @Description Search for a currency by symbol/name across DefiLlama and GeckoTerminal
+// @Tags prices
+// @Produce json
+// @Param q query string true "Search query (symbol)"
+// @Param name query string false "Asset name for lookup"
+// @Param network query string false "Network for direct pool lookup (e.g., base, eth)"
+// @Param providers query []string false "Providers to search (defillama, geckoterminal)"
+// @Success 200 {array} prices.DeepSearchResult
+// @Failure 400 {object} map[string]string
+// @Failure 500 {object} map[string]string
+// @Router /api/prices/deep-search [get]
+func (c *Controller) DeepSearchCurrencies(ctx *gin.Context) {
+	query := ctx.Query("q")
+	if query == "" {
+		badRequest(ctx, "query parameter 'q' is required")
+		return
+	}
+
+	name := ctx.Query("name")
+	network := ctx.Query("network")
+	providerParams := ctx.QueryArray("providers")
+
+	fetcher := prices.NewPriceService()
+	results, err := fetcher.DeepSearch(query, name, network, providerParams)
+	if err != nil {
+		internalError(ctx, "deep search failed")
+		return
+	}
+
+	ctx.JSON(http.StatusOK, results)
+}
+
+// GetDeepSearchProviders godoc
+// @Summary Get available deep search providers
+// @Description Get list of available providers for deep search
+// @Tags prices
+// @Produce json
+// @Success 200 {array} string
+// @Router /api/prices/deep-search/providers [get]
+func (c *Controller) GetDeepSearchProviders(ctx *gin.Context) {
+	ctx.JSON(http.StatusOK, prices.AvailableDeepSearchProviders())
+}

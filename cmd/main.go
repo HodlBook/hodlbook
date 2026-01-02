@@ -146,6 +146,7 @@ func main() {
 		handler.WithPriceChannel(sseCh),
 		handler.WithPriceCache(priceCache),
 		handler.WithAssetCreatedPublisher(assetHistoricSvc.Publisher()),
+		handler.WithLivePriceService(livePriceSvc),
 	)
 	if err != nil {
 		log.Fatal("Failed to create handler:", err)

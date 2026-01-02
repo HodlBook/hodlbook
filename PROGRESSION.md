@@ -50,3 +50,8 @@ Self-hosted crypto portfolio management application.
 - Tax reporting or compliance features.
 - Hosted service / SaaS.
 
+TODO
+- geckoterminal: prioritize fullname on search
+- deffillama correct linking
+- test link pasting
+- fix deep searched asset syncing

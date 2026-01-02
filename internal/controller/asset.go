@@ -8,6 +8,8 @@ import (
 
 	"hodlbook/internal/models"
 	"hodlbook/internal/repo"
+	"hodlbook/pkg/integrations/prices"
+	priceTypes "hodlbook/pkg/types/prices"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
@@ -159,7 +161,7 @@ func (c *Controller) UpdateAsset(ctx *gin.Context) {
 		return
 	}
 
-	c.ensurePriceAtTimestamp(asset.Symbol, asset.Name, asset.Timestamp)
+	c.ensurePriceAtTimestamp(asset.Symbol, asset.Name, asset.Timestamp, asset.PriceSource)
 
 	ctx.JSON(http.StatusOK, asset)
 }
@@ -205,21 +207,36 @@ func (c *Controller) GetUniqueSymbols(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, symbols)
 }
 
-func (c *Controller) ensurePriceAtTimestamp(symbol, name string, timestamp time.Time) {
+func (c *Controller) ensurePriceAtTimestamp(symbol, name string, timestamp time.Time, priceSource *string) {
 	if c.priceFetcher == nil {
 		return
 	}
 
-	allPrices, err := c.priceFetcher.FetchAll()
-	if err != nil {
-		return
+	var priceValue float64
+
+	if priceSource != nil && *priceSource != "" {
+		price := &priceTypes.Price{
+			Asset: priceTypes.Asset{
+				Symbol: symbol,
+				Name:   name,
+			},
+		}
+		fetcher := prices.NewPriceService()
+		if err := fetcher.FetchBySource(*priceSource, price); err == nil && price.Value > 0 {
+			priceValue = price.Value
+		}
 	}
 
-	var priceValue float64
-	for _, p := range allPrices {
-		if p.Asset.Symbol == symbol {
-			priceValue = p.Value
-			break
+	if priceValue == 0 {
+		allPrices, err := c.priceFetcher.FetchAll()
+		if err != nil {
+			return
+		}
+		for _, p := range allPrices {
+			if p.Asset.Symbol == symbol {
+				priceValue = p.Value
+				break
+			}
 		}
 	}
 
